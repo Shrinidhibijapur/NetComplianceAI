@@ -3,10 +3,10 @@ uvicorn[standard]
 pydantic
 sqlalchemy
 psycopg2-binary
-ntc-templates
-textfsm
-pyyaml
-jinja2
-weasyprint
-sentence-transformers
-faiss-cpu
+python-multipart
+pytest
+httpx
+
+# Added in later phases (Section 7 of docs/Implementation_Plan.md):
+# pyyaml, jinja2, weasyprint      -> Phase 2/3 (rule engine, PDF reporting)
+# sentence-transformers, faiss-cpu -> Phase 4 (AI training loop)
