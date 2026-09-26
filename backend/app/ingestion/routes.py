@@ -29,15 +29,16 @@ async def upload_config(
     except UnsupportedVendorError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    db.add(
-        ConfigRecord(
-            device_id=device_id,
-            vendor=vendor,
-            raw_config=raw_config,
-            normalized=normalized.model_dump(mode="json"),
-            parse_confidence=normalized.parse_confidence,
-        )
+    record = ConfigRecord(
+        device_id=device_id,
+        vendor=vendor,
+        raw_config=raw_config,
+        normalized=normalized.model_dump(mode="json"),
+        parse_confidence=normalized.parse_confidence,
     )
+    db.add(record)
     db.commit()
+    db.refresh(record)
 
+    normalized.id = record.id
     return normalized

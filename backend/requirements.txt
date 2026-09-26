@@ -4,9 +4,10 @@ pydantic
 sqlalchemy
 psycopg2-binary
 python-multipart
+pyyaml
 pytest
 httpx
 
 # Added in later phases (Section 7 of docs/Implementation_Plan.md):
-# pyyaml, jinja2, weasyprint      -> Phase 2/3 (rule engine, PDF reporting)
+# jinja2, weasyprint               -> Phase 3 (PDF reporting)
 # sentence-transformers, faiss-cpu -> Phase 4 (AI training loop)

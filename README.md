@@ -67,7 +67,28 @@ curl.exe -X POST http://localhost:8000/ingest/upload `
   -F "device_id=edge-fw-01"
 ```
 
-### 3. Verify Database Persistence in PostgreSQL
+Each upload response includes an `"id"` field (the DB record id) — copy it, you need it for the next step.
+
+### 3. Evaluate Compliance Against CIS (Phase 2)
+
+```powershell
+# Replace 1 with the "id" you got back from the upload response above
+curl.exe -X POST http://localhost:8000/compliance/evaluate `
+  -H "Content-Type: application/json" `
+  -d '{\"config_id\": 1, \"framework\": \"CIS\"}'
+```
+
+Expect a JSON body with a `findings` array (one entry per CIS control: `pass` / `fail` / `unknown`, with a device-specific remediation command attached to every `fail`) and a `summary` like `{"pass": 7, "fail": 1, "unknown": 0}`.
+
+```powershell
+# unknown framework -> clean 400, not a crash
+curl.exe -i -X POST http://localhost:8000/compliance/evaluate -H "Content-Type: application/json" -d '{\"config_id\": 1, \"framework\": \"MADE_UP\"}'
+
+# non-existent config id -> clean 404
+curl.exe -i -X POST http://localhost:8000/compliance/evaluate -H "Content-Type: application/json" -d '{\"config_id\": 9999, \"framework\": \"CIS\"}'
+```
+
+### 4. Verify Database Persistence in PostgreSQL
 
 Confirm that uploaded configurations are stored directly in PostgreSQL:
 
@@ -75,7 +96,7 @@ Confirm that uploaded configurations are stored directly in PostgreSQL:
 docker compose exec db psql -U complianceai -d complianceai -c "SELECT id, device_id, vendor, parse_confidence FROM config_records;"
 ```
 
-### 4. Stopping Containers
+### 5. Stopping Containers
 
 ```bash
 docker compose down          # Stop containers

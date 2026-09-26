@@ -23,6 +23,7 @@ def test_upload_cisco_config():
         )
     assert resp.status_code == 200
     body = resp.json()
+    assert isinstance(body["id"], int)
     assert body["device_id"] == "core-sw-01"
     assert body["controls"]["ssh_version"] == "2"
     assert body["parse_confidence"] == round(8 / 9, 2)
