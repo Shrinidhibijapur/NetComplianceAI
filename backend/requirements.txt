@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pydantic
+sqlalchemy
+psycopg2-binary
+ntc-templates
+textfsm
+pyyaml
+jinja2
+weasyprint
+sentence-transformers
+faiss-cpu

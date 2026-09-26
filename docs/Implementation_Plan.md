@@ -1,4 +1,4 @@
-# SIH26067 — AI-Driven Multi-Vendor Network Security Compliance Auditor
+# SIH26155 — AI-Driven Multi-Vendor Network Security Compliance Auditor
 **Organization:** National Technical Research Organisation (NTRO) | **Theme:** Blockchain & Cybersecurity | **Category:** Software
 
 ---
@@ -171,15 +171,21 @@ This is an NTRO problem statement referencing NCIIPC — the configs being audit
 
 ---
 
-## 8. Demo-Critical Path (what to build first)
+## 8. Phased Implementation Plan (brief)
 
-For a hackathon, build in this order so you always have something working to show:
+Each phase ships something demoable; don't start the next until the current one runs. Phases 0–3 alone are already a usable fallback tool if time runs short.
 
-1. File upload → L1 parsing (`ntc-templates`) for 2–3 common vendors (e.g. Cisco IOS, Juniper) → normalized schema.
-2. Static rule set for CIS (a handful of controls) → Pass/Fail table on screen.
-3. PDF report generation from the Jinja2 template.
-4. **Then** layer in the AI/training loop (Section 4) as the "wow" feature on top of an already-working core — this is also the safer order if time runs short, since 1–3 alone is already a demoable, useful tool.
-5. Bulk upload + multi-framework selection as polish, if time remains.
+| Phase | Focus | Deliverable |
+|---|---|---|
+| **0 — Scaffolding** | Pick 2–3 vendors + ~15–20 CIS controls; stand up FastAPI/React/Postgres/Docker Compose skeleton; agree on canonical `controls` schema | Empty stack runs end-to-end |
+| **1 — Ingestion & Normalization** | Upload endpoint + `ntc-templates`/TextFSM parsing (L1) into the canonical schema | Upload a config → see normalized JSON |
+| **2 — Compliance Rule Engine** | YAML rules for CIS + evaluator + results dashboard | Upload → Pass/Fail findings in UI |
+| **3 — PDF Reporting** | Jinja2 + WeasyPrint report (device ID/serial, findings, remediation) | One-click PDF per device |
+| **4 — AI Training Loop** | Local embeddings + FAISS vector store + Interactive Training UI for unrecognized lines (Section 4.2) | Unknown vendor line gets labeled once, auto-classified thereafter |
+| **5 — Multi-Framework & Bulk** | Add NIST/STIG/ISO rule sets; bulk upload + job queue; framework selector | Bulk mixed-vendor batch → per-device reports |
+| **6 — Hardening & Offline Packaging** | Secrets redaction, encryption at rest, RBAC, verified air-gapped Docker Compose bundle | Section 6 non-negotiables verified |
+
+See Sections 2–7 for the design detail behind each phase.
 
 ---
 
