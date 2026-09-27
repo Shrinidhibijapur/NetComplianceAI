@@ -1,8 +1,6 @@
 from pathlib import Path
 
-import pytest
-
-from app.normalization.engine import UnsupportedVendorError, normalize_config
+from app.normalization.engine import normalize_config
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -37,6 +35,11 @@ def test_juniper_junos_normalization():
     assert any("unknown-knob" in line for line in result.raw_unmapped_lines)
 
 
-def test_unsupported_vendor_raises():
-    with pytest.raises(UnsupportedVendorError):
-        normalize_config("sonic_whitebox", "dev-01", "some config")
+def test_vendor_with_no_l1_rules_falls_through_entirely_to_raw_lines():
+    raw = (FIXTURES / "sonic_sample.cfg").read_text()
+    result = normalize_config("sonic_whitebox", "sonic-01", raw)
+
+    assert result.controls == {}
+    assert result.parse_confidence == 0.0
+    assert any("ssh-server enable" in line for line in result.raw_unmapped_lines)
+    assert len(result.raw_unmapped_lines) == 4  # every non-comment line, none matched

@@ -47,3 +47,32 @@ class ComplianceReport(BaseModel):
     framework: str
     findings: list[Finding]
     summary: dict[str, int]
+
+
+class MatchedExample(BaseModel):
+    line_text: str
+    canonical_key: str
+    vendor: str
+    score: float
+
+
+class LineClassification(BaseModel):
+    """One unrecognized config line's AI-suggested mapping (Section 4.2's classify step)."""
+
+    line_text: str
+    suggested_canonical_key: Optional[str] = None
+    confidence: float
+    needs_labeling: bool
+    matched_examples: list[MatchedExample] = Field(default_factory=list)
+
+
+class PendingTrainingResponse(BaseModel):
+    device_id: str
+    vendor: str
+    classifications: list[LineClassification]
+
+
+class LabelRequest(BaseModel):
+    vendor: str
+    line_text: str
+    canonical_key: str

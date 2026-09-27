@@ -28,6 +28,20 @@ class ConfigRecord(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class TrainingExampleRow(Base):
+    """A (line -> canonical control) mapping the AI training loop can match against (Section 4.2).
+    Seeded with hand-labeled examples on first boot; grows as admins label unrecognized lines."""
+
+    __tablename__ = "training_examples"
+
+    id = Column(Integer, primary_key=True)
+    vendor = Column(String, index=True)
+    line_text = Column(Text)
+    canonical_key = Column(String, index=True)
+    source = Column(String, default="human")  # "seed" or "human"
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 def get_db():
     db = SessionLocal()
     try:

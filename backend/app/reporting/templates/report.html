@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 2cm; }
+  body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #1a1a1a; font-size: 11pt; }
+  h1 { font-size: 18pt; margin-bottom: 0; }
+  .subtitle { color: #555; margin-top: 4px; margin-bottom: 24px; }
+  .device-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  .device-table td { padding: 4px 8px; border-bottom: 1px solid #eee; }
+  .device-table td:first-child { font-weight: bold; width: 30%; color: #444; }
+  .summary { display: flex; gap: 16px; margin-bottom: 24px; }
+  .summary-box { flex: 1; padding: 12px; border-radius: 6px; text-align: center; color: white; }
+  .summary-pass { background: #2e7d32; }
+  .summary-fail { background: #c62828; }
+  .summary-unknown { background: #757575; }
+  .summary-box .count { font-size: 22pt; font-weight: bold; display: block; }
+  table.findings { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  table.findings th, table.findings td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+  table.findings th { background: #f2f2f2; }
+  .status-pass { color: #2e7d32; font-weight: bold; }
+  .status-fail { color: #c62828; font-weight: bold; }
+  .status-unknown { color: #757575; font-weight: bold; }
+  .severity-high { color: #c62828; }
+  .severity-medium { color: #ef6c00; }
+  .severity-low { color: #558b2f; }
+  pre.remediation { background: #f7f7f7; padding: 6px; margin: 0; white-space: pre-wrap; font-size: 9pt; }
+</style>
+</head>
+<body>
+  <h1>Compliance Report — {{ framework }}</h1>
+  <div class="subtitle">Generated {{ generated_at }}</div>
+
+  <table class="device-table">
+    <tr><td>Device ID</td><td>{{ device_id }}</td></tr>
+    <tr><td>Vendor</td><td>{{ vendor }}</td></tr>
+    <tr><td>OS Version</td><td>{{ os_version or "Unknown" }}</td></tr>
+    <tr><td>Serial Number</td><td>{{ serial_number or "Unknown" }}</td></tr>
+  </table>
+
+  <div class="summary">
+    <div class="summary-box summary-pass"><span class="count">{{ summary.pass }}</span>Pass</div>
+    <div class="summary-box summary-fail"><span class="count">{{ summary.fail }}</span>Fail</div>
+    <div class="summary-box summary-unknown"><span class="count">{{ summary.unknown }}</span>Unknown</div>
+  </div>
+
+  <table class="findings">
+    <thead>
+      <tr>
+        <th>Control</th>
+        <th>Status</th>
+        <th>Severity</th>
+        <th>Expected</th>
+        <th>Actual</th>
+        <th>Remediation</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in findings %}
+      <tr>
+        <td>{{ f.control_id }}<br><small>{{ f.title }}</small></td>
+        <td class="status-{{ f.status }}">{{ f.status.upper() }}</td>
+        <td class="severity-{{ f.severity }}">{{ f.severity.upper() }}</td>
+        <td>{{ f.expected }}</td>
+        <td>{{ f.actual if f.actual is not none else "—" }}</td>
+        <td>{% if f.remediation %}<pre class="remediation">{{ f.remediation }}</pre>{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

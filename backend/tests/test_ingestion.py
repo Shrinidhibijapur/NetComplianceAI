@@ -29,10 +29,16 @@ def test_upload_cisco_config():
     assert body["parse_confidence"] == round(8 / 9, 2)
 
 
-def test_upload_unsupported_vendor():
+def test_upload_vendor_with_no_l1_rules_still_succeeds():
+    """A vendor outside VENDOR_RULES isn't rejected — it just has nothing to L1-parse
+    and everything routes to raw_unmapped_lines for the AI training loop (Phase 4)."""
     resp = client.post(
         "/ingest/upload",
-        files={"file": ("x.cfg", b"whatever", "text/plain")},
+        files={"file": ("x.cfg", b"some totally unknown config syntax", "text/plain")},
         data={"vendor": "sonic_whitebox", "device_id": "dev-01"},
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["controls"] == {}
+    assert body["parse_confidence"] == 0.0
+    assert body["raw_unmapped_lines"] == ["some totally unknown config syntax"]
