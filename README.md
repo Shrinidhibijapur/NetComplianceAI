@@ -1,6 +1,11 @@
 # ComplianceAI
 
-AI-driven multi-vendor network security compliance auditor (SIH26155). See [docs/Implementation_Plan.md](docs/Implementation_Plan.md) for architecture, design rationale, and the phased build plan.
+AI-driven multi-vendor network security compliance auditor (SIH26155). Upload a raw device
+config from any vendor, get it normalized into one schema (known vendors parse instantly,
+unrecognized syntax routes to a self-improving AI trainer), evaluate it against CIS / NIST
+SP 800-53 / DISA STIG / ISO 27001, and export a branded PDF audit report — no sign-up, runs
+fully offline. See [docs/Implementation_Plan.md](docs/Implementation_Plan.md) for architecture,
+design rationale, and the phased build plan.
 
 ---
 
@@ -8,128 +13,177 @@ AI-driven multi-vendor network security compliance auditor (SIH26155). See [docs
 
 ```
 backend/             FastAPI application (ingestion, normalization, compliance, reporting, ai_training)
-frontend/            React web dashboard (Phase 5)
-docs/                Implementation plan and architectural design specs
-docker-compose.yml   Air-gapped / Local Docker container orchestration
+frontend/            React + TypeScript dashboard (Vite)
+docs/                Implementation plan and architectural design references
+docker-compose.yml   Air-gapped / local Docker container orchestration
 ```
 
 ---
 
-## 🌐 How Localhost Access Works with Docker
+## 🚀 Quick Start (local dev, no Docker)
 
-When you run `docker compose up`, Docker forwards network ports from your host machine (`localhost`) into the Docker containers:
+This is the fastest way to run the project on your own machine. You'll need **two terminal
+windows open at the same time** — one keeps the backend server running, the other keeps the
+frontend server running. Leave both running while you use the app.
 
-- **`http://localhost:8000`** $\rightarrow$ Connects directly to the **FastAPI Backend container**.
-- **`http://localhost:8000/docs`** $\rightarrow$ Interactive Swagger UI (Upload files directly in your web browser!).
-- **`http://localhost:8000/health`** $\rightarrow$ API Health status endpoint.
-- **`localhost:5432`** $\rightarrow$ Connects directly to the **PostgreSQL Database container**.
+### Prerequisites
 
----
+Install these first if you don't already have them:
 
-## 🚀 Setup & Run with Docker (Recommended)
+- **Python 3.11+** — [python.org/downloads](https://www.python.org/downloads/). Check with `python --version`.
+- **Node.js 18+** (includes `npm`) — [nodejs.org](https://nodejs.org/). Check with `node --version`.
+- **Git** — to clone the repository.
 
-Requires only [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+You do **not** need Docker, PostgreSQL, or any account/API key to run this locally — the
+default setup uses a local SQLite file and everything runs offline.
 
-### 1. Clone & Start Containers
-
-```bash
-# Copy example environment file
-cp .env.example .env
-
-# Build and start PostgreSQL + FastAPI containers
-docker compose up --build -d
-```
-
-### 2. Verify in Browser or Terminal
-
-#### Option A: Web Browser (GUI - Interactive)
-Open your browser and navigate to:
-👉 **`http://localhost:8000/docs`**  
-You can test file uploads visually by expanding `/ingest/upload`, clicking **"Try it out"**, choosing a `.cfg` file, and clicking **Execute**.
-
-#### Option B: Terminal (PowerShell / Command Line)
-
-```powershell
-# 1. Health check
-curl.exe http://localhost:8000/health
-# Expect: {"status":"ok"}
-
-# 2. Upload sample Cisco config
-curl.exe -X POST http://localhost:8000/ingest/upload `
-  -F "file=@backend/tests/fixtures/cisco_ios_sample.cfg" `
-  -F "vendor=cisco_ios" `
-  -F "device_id=core-sw-01"
-
-# 3. Upload sample Juniper config
-curl.exe -X POST http://localhost:8000/ingest/upload `
-  -F "file=@backend/tests/fixtures/juniper_junos_sample.cfg" `
-  -F "vendor=juniper_junos" `
-  -F "device_id=edge-fw-01"
-```
-
-Each upload response includes an `"id"` field (the DB record id) — copy it, you need it for the next step.
-
-### 3. Evaluate Compliance Against CIS (Phase 2)
-
-```powershell
-# Replace 1 with the "id" you got back from the upload response above
-curl.exe -X POST http://localhost:8000/compliance/evaluate `
-  -H "Content-Type: application/json" `
-  -d '{\"config_id\": 1, \"framework\": \"CIS\"}'
-```
-
-Expect a JSON body with a `findings` array (one entry per CIS control: `pass` / `fail` / `unknown`, with a device-specific remediation command attached to every `fail`) and a `summary` like `{"pass": 7, "fail": 1, "unknown": 0}`.
-
-```powershell
-# unknown framework -> clean 400, not a crash
-curl.exe -i -X POST http://localhost:8000/compliance/evaluate -H "Content-Type: application/json" -d '{\"config_id\": 1, \"framework\": \"MADE_UP\"}'
-
-# non-existent config id -> clean 404
-curl.exe -i -X POST http://localhost:8000/compliance/evaluate -H "Content-Type: application/json" -d '{\"config_id\": 9999, \"framework\": \"CIS\"}'
-```
-
-### 4. Verify Database Persistence in PostgreSQL
-
-Confirm that uploaded configurations are stored directly in PostgreSQL:
+### Step 1 — Clone the repository
 
 ```bash
-docker compose exec db psql -U complianceai -d complianceai -c "SELECT id, device_id, vendor, parse_confidence FROM config_records;"
+git clone <this-repo-url>
+cd ComplianceAI
 ```
 
-### 5. Stopping Containers
-
-```bash
-docker compose down          # Stop containers
-docker compose down -v       # Stop containers and wipe Postgres volume (clean slate)
-```
-
----
-
-## 💻 Local Development without Docker (SQLite Mode)
-
-If you prefer running FastAPI without Docker during development:
+### Step 2 — Start the backend (Terminal 1)
 
 ```powershell
 cd backend
 
-# Create virtual environment
+# Create an isolated Python environment (first time only)
 python -m venv .venv
-.venv\Scripts\Activate.ps1    # macOS/Linux: source .venv/bin/activate
 
-# Install dependencies
+# Activate it — you must re-run this every time you open a new terminal
+.venv\Scripts\Activate.ps1        # Windows PowerShell
+# .venv\Scripts\activate.bat      # Windows cmd.exe
+# source .venv/bin/activate       # macOS / Linux
+
+# Install backend dependencies (first time only, or after requirements.txt changes)
 pip install -r requirements.txt
 
-# Run automated tests
-python -m pytest -v
+# Start the API server, auto-reloads on code changes
+uvicorn app.main:app --reload --port 8000
+```
 
-# Start FastAPI server (defaults to local SQLite database complianceai.db)
-uvicorn app.main:app --reload
+Leave this terminal running. You should see `Uvicorn running on http://127.0.0.1:8000`.
+Verify it's alive by opening `http://localhost:8000/health` in a browser — it should return
+`{"status":"ok"}`. The API stores data in a local `backend/complianceai.db` SQLite file that's
+created automatically on first run — no database setup needed.
+
+### Step 3 — Start the frontend (Terminal 2, new window)
+
+```powershell
+cd frontend
+
+# Install frontend dependencies (first time only, or after package.json changes)
+npm install
+
+# Start the dev server
+npm run dev -- --port 5173
+```
+
+Leave this terminal running too. It will print a local URL — open
+**`http://localhost:5173`** in your browser. By default the dashboard talks to the backend at
+`http://localhost:8000`; if your backend runs somewhere else, create a `frontend/.env` file
+with `VITE_API_URL=http://your-backend-host:port` before starting.
+
+### Step 4 — Use the app
+
+1. You land on the landing page — click **Launch Console**.
+2. **Upload tab**: upload a device config. No file of your own? Click one of the bundled
+   sample-config chips (a hardened Cisco device, a Juniper device that needs hardening, and an
+   unrecognized "whitebox" vendor to demo the AI training loop) to auto-fill the form, then hit
+   **Ingest config**.
+3. **Devices tab**: your uploaded device appears as a card. Click it to expand, pick a
+   framework (CIS / NIST / STIG / ISO), click **Evaluate**, then **Download PDF report** for
+   the branded audit report.
+4. **AI Training tab**: if a device had config lines the parser didn't recognize, they show up
+   here — pick the canonical control they map to and confirm; every future device using that
+   same phrasing is then auto-classified.
+
+### Stopping everything
+
+Press `Ctrl+C` in each terminal to stop the backend and frontend servers.
+
+---
+
+## 🐳 Docker (Postgres-backed)
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
+
+- `http://localhost:8000` → FastAPI backend container
+- `http://localhost:8000/docs` → Swagger UI (upload files directly in the browser)
+- `http://localhost:8000/health` → health check
+- `localhost:5432` → PostgreSQL container
+
+```bash
+docker compose logs backend      # tail logs
+docker compose down              # stop
+docker compose down -v           # stop + wipe the Postgres volume
+```
+
+The frontend is not containerized yet — run it with `npm run dev` against the Dockerized
+backend (`http://localhost:8000`).
+
+---
+
+## 🔌 API Reference (backend)
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET`  | `/health` | Liveness check |
+| `POST` | `/ingest/upload` | Upload one config (`file`, `vendor`, `device_id` form fields) |
+| `POST` | `/ingest/bulk` | Upload a batch (`files[]`, `vendors[]`, `device_ids[]`) |
+| `GET`  | `/ingest/records` | List every ingested device |
+| `GET`  | `/compliance/frameworks` | List supported frameworks (CIS, NIST, STIG, ISO) |
+| `POST` | `/compliance/evaluate` | Evaluate a config (`config_id`, `framework`) → findings + summary |
+| `GET`  | `/reporting/{config_id}/pdf?framework=CIS` | Download the branded PDF audit report |
+| `GET`  | `/ai-training/pending/{config_id}` | List unmapped config lines awaiting a label |
+| `POST` | `/ai-training/label` | Confirm a line → canonical control mapping (auto-classifies future devices) |
+
+Example end-to-end curl flow:
+
+```powershell
+curl.exe http://localhost:8000/health
+
+curl.exe -X POST http://localhost:8000/ingest/upload `
+  -F "file=@your_config.cfg" -F "vendor=cisco_ios" -F "device_id=core-sw-01"
+# note the returned "id"
+
+curl.exe -X POST http://localhost:8000/compliance/evaluate `
+  -H "Content-Type: application/json" `
+  -d '{\"config_id\": 1, \"framework\": \"CIS\"}'
+
+curl.exe -o report.pdf "http://localhost:8000/reporting/1/pdf?framework=CIS"
+```
+
+Error paths return clean status codes, not crashes: an unknown framework is a `400`, a
+non-existent `config_id` is a `404`.
+
+---
+
+## 🧪 Tests
+
+```powershell
+cd backend
+python -m pytest -v
+```
+
+```powershell
+cd frontend
+npm run build      # tsc type-check + production build
 ```
 
 ---
 
-## 🛠️ Troubleshooting & Tips
+## 🛠️ Troubleshooting
 
-- **Check logs**: `docker compose logs backend`
-- **Port conflicts (`8000` or `5432`)**: If port 8000 is already in use by a local process, stop the local `uvicorn` instance before starting Docker.
-- **Always build after code changes**: `docker compose up --build -d`
+- **Port 8000/5173 already in use** — stop the process holding it before restarting
+  (`Get-NetTCPConnection -LocalPort 8000` in PowerShell), or pick a different `--port`.
+- **Frontend can't reach the backend** — confirm `uvicorn` is running and CORS is enabled
+  (it is, by default, for local dev); set `VITE_API_URL` if the API isn't on `localhost:8000`.
+- **Docker: always rebuild after code changes** — `docker compose up --build -d`.
+- **Locked/stale SQLite file** — stop the running `uvicorn` process before deleting
+  `backend/complianceai.db` to reset local data.

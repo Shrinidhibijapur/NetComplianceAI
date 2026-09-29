@@ -1,0 +1,81 @@
+# ISO/IEC 27001:2022 Annex A control mappings, against the same canonical control
+# vocabulary as CIS/NIST/STIG (docs/Implementation_Plan.md Section 3/5).
+- control_id: ISO-A.8.24
+  framework: ISO
+  title: Use cryptographic protocols for remote administrative access
+  canonical_key: ssh_version
+  expected: "2"
+  severity: high
+  remediation:
+    cisco_ios: "ip ssh version 2"
+    juniper_junos: "set system services ssh"
+
+- control_id: ISO-A.8.20
+  framework: ISO
+  title: Disable unencrypted network services (Telnet)
+  canonical_key: telnet_enabled
+  expected: false
+  severity: high
+  remediation:
+    cisco_ios: "line vty 0 4\n transport input ssh"
+    juniper_junos: "delete system services telnet"
+
+- control_id: ISO-A.8.9
+  framework: ISO
+  title: Configuration management — disable unneeded management interfaces
+  canonical_key: http_mgmt_enabled
+  expected: false
+  severity: medium
+  remediation:
+    cisco_ios: "no ip http server"
+    juniper_junos: "delete system services web-management http"
+
+- control_id: ISO-A.8.5
+  framework: ISO
+  title: Secure authentication — encrypt stored credentials
+  canonical_key: password_encryption
+  expected: "type7"
+  severity: medium
+  remediation:
+    cisco_ios: "service password-encryption"
+    juniper_junos: "set system login password format sha512"
+
+- control_id: ISO-A.8.15
+  framework: ISO
+  title: Logging of administrative access events
+  canonical_key: logging_enabled
+  expected: true
+  severity: medium
+  remediation:
+    cisco_ios: "logging host <syslog-server-ip>"
+    juniper_junos: "set system syslog host <syslog-server-ip> any any"
+
+- control_id: ISO-A.8.17
+  framework: ISO
+  title: Clock synchronization for reliable audit timestamps
+  canonical_key: ntp_configured
+  expected: true
+  severity: low
+  remediation:
+    cisco_ios: "ntp server <ntp-server-ip>"
+    juniper_junos: "set system ntp server <ntp-server-ip>"
+
+- control_id: ISO-A.8.22
+  framework: ISO
+  title: Segregation of networks with default-deny boundary filtering
+  canonical_key: acl_default_deny
+  expected: true
+  severity: high
+  remediation:
+    cisco_ios: "access-list 101 deny ip any any"
+    juniper_junos: "set firewall filter PROTECT term deny-all then discard"
+
+- control_id: ISO-A.5.17
+  framework: ISO
+  title: No shared/default authentication information (SNMP community strings)
+  canonical_key: snmp_community_default
+  expected: false
+  severity: high
+  remediation:
+    cisco_ios: "no snmp-server community public\nno snmp-server community private"
+    juniper_junos: "delete snmp community public"

@@ -6,7 +6,7 @@ from ..compliance.engine import evaluate_controls, summarize
 from ..db import ConfigRecord, get_db
 from ..models import ComplianceReport
 from ..rules.loader import UnknownFrameworkError, load_rules
-from .engine import render_report_html, render_report_pdf
+from .engine import render_report_html, render_report_pdf, render_report_pdf_fallback
 
 router = APIRouter(prefix="/reporting", tags=["reporting"])
 
@@ -31,12 +31,16 @@ def download_report_pdf(config_id: int, framework: str = "CIS", db: Session = De
         summary=summarize(findings),
     )
 
-    html = render_report_html(
-        report,
-        os_version=record.normalized.get("os_version"),
-        serial_number=record.normalized.get("serial_number"),
-    )
-    pdf_bytes = render_report_pdf(html)
+    os_version = record.normalized.get("os_version")
+    serial_number = record.normalized.get("serial_number")
+
+    try:
+        html = render_report_html(report, os_version=os_version, serial_number=serial_number)
+        pdf_bytes = render_report_pdf(html)
+    except (ImportError, OSError):
+        # WeasyPrint needs native Pango/Cairo libs that aren't always present
+        # (e.g. a plain Windows dev machine) — fall back to the pure-Python renderer.
+        pdf_bytes = render_report_pdf_fallback(report, os_version=os_version, serial_number=serial_number)
 
     filename = f"{record.device_id}_{framework.upper()}_report.pdf"
     return Response(

@@ -3,71 +3,109 @@
 <head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4; margin: 2cm; }
-  body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #1a1a1a; font-size: 11pt; }
-  h1 { font-size: 18pt; margin-bottom: 0; }
-  .subtitle { color: #555; margin-top: 4px; margin-bottom: 24px; }
-  .device-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-  .device-table td { padding: 4px 8px; border-bottom: 1px solid #eee; }
-  .device-table td:first-child { font-weight: bold; width: 30%; color: #444; }
-  .summary { display: flex; gap: 16px; margin-bottom: 24px; }
-  .summary-box { flex: 1; padding: 12px; border-radius: 6px; text-align: center; color: white; }
-  .summary-pass { background: #2e7d32; }
-  .summary-fail { background: #c62828; }
-  .summary-unknown { background: #757575; }
-  .summary-box .count { font-size: 22pt; font-weight: bold; display: block; }
-  table.findings { width: 100%; border-collapse: collapse; margin-top: 12px; }
-  table.findings th, table.findings td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
-  table.findings th { background: #f2f2f2; }
-  .status-pass { color: #2e7d32; font-weight: bold; }
-  .status-fail { color: #c62828; font-weight: bold; }
-  .status-unknown { color: #757575; font-weight: bold; }
-  .severity-high { color: #c62828; }
-  .severity-medium { color: #ef6c00; }
-  .severity-low { color: #558b2f; }
-  pre.remediation { background: #f7f7f7; padding: 6px; margin: 0; white-space: pre-wrap; font-size: 9pt; }
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body { font-family: 'DejaVu Sans', Arial, sans-serif; color: #1a1a1a; font-size: 10.5pt; margin: 0; }
+  .content { padding: 16px 28px 28px; }
+
+  .header { background: #0d1117; color: white; padding: 18px 28px; margin-bottom: 20px; }
+  .header .brand { font-size: 17pt; font-weight: bold; margin: 0; }
+  .header .subtitle { color: #aab2ba; font-size: 9pt; margin-top: 2px; }
+  .header .meta { text-align: right; }
+  .header .meta .framework { font-weight: bold; font-size: 10.5pt; }
+  .header .meta .date { color: #aab2ba; font-size: 8.5pt; margin-top: 2px; }
+  .header-row { display: flex; justify-content: space-between; align-items: flex-start; }
+
+  .device-box { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 6px; padding: 10px 14px; margin-bottom: 18px; }
+  .device-grid { display: flex; flex-wrap: wrap; }
+  .device-grid .item { width: 50%; padding: 3px 0; font-size: 9.5pt; }
+  .device-grid .item .label { color: #57606a; font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-right: 6px; }
+
+  .score-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .score-box { width: 130px; border: 1px solid #d0d7de; border-radius: 6px; text-align: center; padding: 10px 6px; }
+  .score-box .num { font-size: 22pt; font-weight: bold; display: block; }
+  .score-box .label { font-size: 8pt; color: #57606a; text-transform: uppercase; letter-spacing: 0.03em; }
+  .score-pass .num { color: #238636; }
+  .score-warn .num { color: #9a6700; }
+  .score-fail .num { color: #d1332f; }
+
+  .summary-box { flex: 1; border-radius: 6px; text-align: center; color: white; padding: 10px 6px; }
+  .summary-pass { background: #238636; }
+  .summary-fail { background: #d1332f; }
+  .summary-unknown { background: #57606a; }
+  .summary-box .count { font-size: 20pt; font-weight: bold; display: block; }
+  .summary-box .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  h2.findings-title { font-size: 13pt; margin: 0 0 10px; }
+
+  .finding-card { border: 1px solid #d0d7de; border-left: 4px solid #57606a; border-radius: 4px; padding: 10px 12px; margin-bottom: 10px; page-break-inside: avoid; }
+  .finding-card.sev-high { border-left-color: #d1332f; }
+  .finding-card.sev-medium { border-left-color: #9a6700; }
+  .finding-card.sev-low { border-left-color: #57606a; }
+  .finding-title { font-weight: bold; font-size: 10.5pt; margin-bottom: 6px; }
+  .badges { margin-bottom: 8px; }
+  .badge { display: inline-block; color: white; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 7px; border-radius: 3px; margin-right: 5px; }
+  .badge-pass { background: #238636; }
+  .badge-fail { background: #d1332f; }
+  .badge-unknown { background: #57606a; }
+  .badge-sev-high { background: #d1332f; }
+  .badge-sev-medium { background: #9a6700; }
+  .badge-sev-low { background: #57606a; }
+  .meta-line { color: #444; font-size: 9pt; margin-bottom: 4px; }
+  .remediation-label { color: #9a6700; font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-top: 4px; }
+  pre.remediation { background: #f6f8fa; border-radius: 4px; padding: 6px 8px; margin: 3px 0 0; white-space: pre-wrap; font-size: 8.5pt; color: #333; }
 </style>
 </head>
 <body>
-  <h1>Compliance Report — {{ framework }}</h1>
-  <div class="subtitle">Generated {{ generated_at }}</div>
-
-  <table class="device-table">
-    <tr><td>Device ID</td><td>{{ device_id }}</td></tr>
-    <tr><td>Vendor</td><td>{{ vendor }}</td></tr>
-    <tr><td>OS Version</td><td>{{ os_version or "Unknown" }}</td></tr>
-    <tr><td>Serial Number</td><td>{{ serial_number or "Unknown" }}</td></tr>
-  </table>
-
-  <div class="summary">
-    <div class="summary-box summary-pass"><span class="count">{{ summary.pass }}</span>Pass</div>
-    <div class="summary-box summary-fail"><span class="count">{{ summary.fail }}</span>Fail</div>
-    <div class="summary-box summary-unknown"><span class="count">{{ summary.unknown }}</span>Unknown</div>
+  <div class="header">
+    <div class="header-row">
+      <div>
+        <p class="brand">ComplianceAI</p>
+        <div class="subtitle">Network Security Compliance Audit Report</div>
+      </div>
+      <div class="meta">
+        <div class="framework">{{ framework }} FRAMEWORK</div>
+        <div class="date">{{ generated_at }}</div>
+      </div>
+    </div>
   </div>
 
-  <table class="findings">
-    <thead>
-      <tr>
-        <th>Control</th>
-        <th>Status</th>
-        <th>Severity</th>
-        <th>Expected</th>
-        <th>Actual</th>
-        <th>Remediation</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for f in findings %}
-      <tr>
-        <td>{{ f.control_id }}<br><small>{{ f.title }}</small></td>
-        <td class="status-{{ f.status }}">{{ f.status.upper() }}</td>
-        <td class="severity-{{ f.severity }}">{{ f.severity.upper() }}</td>
-        <td>{{ f.expected }}</td>
-        <td>{{ f.actual if f.actual is not none else "—" }}</td>
-        <td>{% if f.remediation %}<pre class="remediation">{{ f.remediation }}</pre>{% else %}—{% endif %}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="content">
+    <div class="device-box">
+      <div class="device-grid">
+        <div class="item"><span class="label">Device ID</span>{{ device_id }}</div>
+        <div class="item"><span class="label">Vendor</span>{{ vendor }}</div>
+        <div class="item"><span class="label">OS Version</span>{{ os_version or "Unknown" }}</div>
+        <div class="item"><span class="label">Serial Number</span>{{ serial_number or "Unknown" }}</div>
+      </div>
+    </div>
+
+    <div class="score-row">
+      <div class="score-box {{ 'score-pass' if score >= 80 else ('score-warn' if score >= 50 else 'score-fail') }}">
+        <span class="num">{{ score }}%</span>
+        <div class="label">Compliance Score</div>
+      </div>
+      <div class="summary-box summary-pass"><span class="count">{{ summary.pass }}</span><div class="label">Pass</div></div>
+      <div class="summary-box summary-fail"><span class="count">{{ summary.fail }}</span><div class="label">Fail</div></div>
+      <div class="summary-box summary-unknown"><span class="count">{{ summary.unknown }}</span><div class="label">Unknown</div></div>
+    </div>
+
+    <h2 class="findings-title">Findings ({{ findings|length }})</h2>
+
+    {% for f in findings %}
+    <div class="finding-card sev-{{ f.severity }}">
+      <div class="finding-title">{{ f.control_id }} &middot; {{ f.title }}</div>
+      <div class="badges">
+        <span class="badge badge-{{ f.status }}">{{ f.status.upper() }}</span>
+        <span class="badge badge-sev-{{ f.severity }}">{{ f.severity.upper() }}</span>
+      </div>
+      <div class="meta-line">Expected: {{ f.expected }} &nbsp;&nbsp; Actual: {{ f.actual if f.actual is not none else "n/a" }}</div>
+      {% if f.remediation %}
+      <div class="remediation-label">Remediation</div>
+      <pre class="remediation">{{ f.remediation }}</pre>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
 </body>
 </html>

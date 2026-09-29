@@ -1,0 +1,82 @@
+# NIST SP 800-53 Rev.5 control mappings, expressed against the same canonical
+# control vocabulary as CIS (docs/Implementation_Plan.md Section 3/5) — this is what
+# makes the compliance engine multi-framework without touching the parsing layer.
+- control_id: NIST-AC-17(2)
+  framework: NIST
+  title: Use cryptographically protected remote access sessions (SSHv2)
+  canonical_key: ssh_version
+  expected: "2"
+  severity: high
+  remediation:
+    cisco_ios: "ip ssh version 2"
+    juniper_junos: "set system services ssh"
+
+- control_id: NIST-AC-17(1)
+  framework: NIST
+  title: Prohibit unencrypted remote management protocols (Telnet)
+  canonical_key: telnet_enabled
+  expected: false
+  severity: high
+  remediation:
+    cisco_ios: "line vty 0 4\n transport input ssh"
+    juniper_junos: "delete system services telnet"
+
+- control_id: NIST-CM-7
+  framework: NIST
+  title: Disable unnecessary management services (HTTP)
+  canonical_key: http_mgmt_enabled
+  expected: false
+  severity: medium
+  remediation:
+    cisco_ios: "no ip http server"
+    juniper_junos: "delete system services web-management http"
+
+- control_id: NIST-IA-5(1)
+  framework: NIST
+  title: Enforce encrypted storage of authenticators
+  canonical_key: password_encryption
+  expected: "type7"
+  severity: medium
+  remediation:
+    cisco_ios: "service password-encryption"
+    juniper_junos: "set system login password format sha512"
+
+- control_id: NIST-AU-2
+  framework: NIST
+  title: Generate audit records for administrative access
+  canonical_key: logging_enabled
+  expected: true
+  severity: medium
+  remediation:
+    cisco_ios: "logging host <syslog-server-ip>"
+    juniper_junos: "set system syslog host <syslog-server-ip> any any"
+
+- control_id: NIST-AU-8
+  framework: NIST
+  title: Use an authoritative time source for audit timestamps
+  canonical_key: ntp_configured
+  expected: true
+  severity: low
+  remediation:
+    cisco_ios: "ntp server <ntp-server-ip>"
+    juniper_junos: "set system ntp server <ntp-server-ip>"
+
+- control_id: NIST-SC-7
+  framework: NIST
+  title: Enforce boundary protection with default-deny filtering
+  canonical_key: acl_default_deny
+  expected: true
+  severity: high
+  remediation:
+    cisco_ios: "access-list 101 deny ip any any"
+    juniper_junos: "set firewall filter PROTECT term deny-all then discard"
+
+- control_id: NIST-IA-5(7)
+  framework: NIST
+  title: No embedded/default authenticators (SNMP community strings)
+  canonical_key: snmp_community_default
+  expected: false
+  severity: high
+  remediation:
+    cisco_ios: "no snmp-server community public\nno snmp-server community private"
+    juniper_junos: "delete snmp community public"

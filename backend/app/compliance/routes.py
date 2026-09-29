@@ -10,6 +10,13 @@ from .engine import evaluate_controls, summarize
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
 
+@router.get("/frameworks", response_model=list[str])
+def list_frameworks() -> list[str]:
+    from ..rules.loader import FRAMEWORKS_DIR
+
+    return sorted(p.stem.upper() for p in FRAMEWORKS_DIR.glob("*.yaml"))
+
+
 class EvaluateRequest(BaseModel):
     config_id: int
     framework: str = "CIS"

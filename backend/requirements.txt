@@ -7,6 +7,7 @@ python-multipart
 pyyaml
 jinja2
 weasyprint
+fpdf2
 sentence-transformers
 faiss-cpu
 pytest
