@@ -1,81 +1,460 @@
-# CIS Benchmark controls, mapped to the canonical control vocabulary from
-# NormalizedConfig.controls (see docs/Implementation_Plan.md Section 3/5).
-- control_id: CIS-5.2.1
-  framework: CIS
+# CIS Benchmark controls for Network Devices
+# Rule Schema V2 - Data-driven multi-framework rule definition
+
+- rule_id: CIS-5.2.1
   title: Use SSHv2 for remote management
-  canonical_key: ssh_version
+  target_field: ssh_version
+  operator: equals
   expected: "2"
   severity: high
-  remediation:
-    cisco_ios: "ip ssh version 2"
-    juniper_junos: "set system services ssh"
-
-- control_id: CIS-9.2.1
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 5.2.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios", "juniper_junos", "arista_eos", "fortinet_fortios", "mikrotik_routeros", "sonic"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ip ssh version 2", verified: true }
+    juniper_junos: { command: "set system services ssh protocol-version v2", verified: true }
+
+- rule_id: CIS-9.2.1
   title: Disable Telnet for remote management
-  canonical_key: telnet_enabled
+  target_field: telnet_enabled
+  operator: equals
   expected: false
   severity: high
-  remediation:
-    cisco_ios: "line vty 0 4\n transport input ssh"
-    juniper_junos: "delete system services telnet"
-
-- control_id: CIS-9.2.2
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.2.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "line vty 0 4\n transport input ssh", verified: true }
+    juniper_junos: { command: "delete system services telnet", verified: true }
+
+- rule_id: CIS-9.2.2
   title: Disable HTTP management interface
-  canonical_key: http_mgmt_enabled
+  target_field: http_mgmt_enabled
+  operator: equals
   expected: false
   severity: medium
-  remediation:
-    cisco_ios: "no ip http server"
-    juniper_junos: "delete system services web-management http"
-
-- control_id: CIS-4.1.1
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.2.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "no ip http server", verified: true }
+    juniper_junos: { command: "delete system services web-management http", verified: true }
+
+- rule_id: CIS-4.1.1
   title: Enable password encryption for locally stored credentials
-  canonical_key: password_encryption
-  expected: "type7"
+  target_field: password_encryption
+  operator: in
+  expected: ["type7", "sha512", "secret", "true"]
   severity: medium
-  remediation:
-    cisco_ios: "service password-encryption"
-    juniper_junos: "set system login password format sha512"
-
-- control_id: CIS-8.1.1
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 4.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "service password-encryption", verified: true }
+    juniper_junos: { command: "set system login password format sha512", verified: true }
+
+- rule_id: CIS-8.1.1
   title: Enable logging of administrative access
-  canonical_key: logging_enabled
+  target_field: logging_enabled
+  operator: equals
   expected: true
   severity: medium
-  remediation:
-    cisco_ios: "logging host <syslog-server-ip>"
-    juniper_junos: "set system syslog host <syslog-server-ip> any any"
-
-- control_id: CIS-2.1.1
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 8.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "logging host <syslog-server-ip>", verified: true }
+    juniper_junos: { command: "set system syslog host <syslog-server-ip> any any", verified: true }
+
+- rule_id: CIS-2.1.1
   title: Configure NTP for accurate audit timestamps
-  canonical_key: ntp_configured
+  target_field: ntp_configured
+  operator: equals
   expected: true
   severity: low
-  remediation:
-    cisco_ios: "ntp server <ntp-server-ip>"
-    juniper_junos: "set system ntp server <ntp-server-ip>"
-
-- control_id: CIS-3.1.1
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 2.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ntp server <ntp-server-ip>", verified: true }
+    juniper_junos: { command: "set system ntp server <ntp-server-ip>", verified: true }
+
+- rule_id: CIS-3.1.1
   title: Default-deny ACLs at network boundary
-  canonical_key: acl_default_deny
+  target_field: acl_default_deny
+  operator: equals
   expected: true
   severity: high
-  remediation:
-    cisco_ios: "access-list 101 deny ip any any"
-    juniper_junos: "set firewall filter PROTECT term deny-all then discard"
-
-- control_id: CIS-9.3.1
   framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 3.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "access-list 101 deny ip any any", verified: true }
+    juniper_junos: { command: "set firewall filter PROTECT term deny-all then discard", verified: true }
+
+- rule_id: CIS-9.3.1
   title: No default SNMP community strings
-  canonical_key: snmp_community_default
+  target_field: snmp_community_default
+  operator: equals
   expected: false
   severity: high
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.3.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
   remediation:
-    cisco_ios: "no snmp-server community public\nno snmp-server community private"
-    juniper_junos: "delete snmp community public"
+    cisco_ios: { command: "no snmp-server community public\nno snmp-server community private", verified: true }
+    juniper_junos: { command: "delete snmp community public", verified: true }
+
+- rule_id: CIS-1.1.4
+  title: Enable HTTPS for web management if required
+  target_field: https_mgmt_enabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 1.1.4
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-3.2.2
+  title: Enforce SNMPv3 for secure network management
+  target_field: snmp_version
+  operator: equals
+  expected: "v3"
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 3.2.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-4.1.2
+  title: Enable AAA authentication for administrative login
+  target_field: aaa_enabled
+  operator: equals
+  expected: true
+  severity: high
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 4.1.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-5.1.1
+  title: Enforce executive session inactivity timeout
+  target_field: console_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 5.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-5.1.2
+  title: Enforce VTY line session inactivity timeout
+  target_field: vty_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 5.1.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-6.1.1
+  title: Disable Cisco Discovery Protocol (CDP) on untrusted interfaces
+  target_field: cdp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 6.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: CIS-6.1.2
+  title: Disable IP source routing
+  target_field: ip_source_route_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 6.1.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-6.2.1
+  title: Restrict SSH ciphers to strong algorithms
+  target_field: ssh_ciphers_restricted
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 6.2.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-7.1.1
+  title: Set legal login warning banner
+  target_field: banner_login_set
+  operator: equals
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 7.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-7.1.2
+  title: Disable IP directed broadcasts
+  target_field: ip_directed_broadcast_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 7.1.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-8.2.1
+  title: Disable Packet Assembler/Disassembler (PAD) service
+  target_field: service_pad_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 8.2.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: CIS-8.3.1
+  title: Enable TCP keepalives for management connections
+  target_field: tcp_keepalive
+  operator: equals
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 8.3.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.1.1
+  title: Enable Spanning Tree BPDU Guard
+  target_field: spanning_tree_bpduguard
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.1.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios", "arista_eos"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.2.3
+  title: Enforce minimum password length
+  target_field: password_min_length
+  operator: greater_than
+  expected: 9
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.2.3
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.3.2
+  title: Configure remote syslog server logging
+  target_field: syslog_remote_host
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.3.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.4.1
+  title: Disable TFTP server service
+  target_field: tftp_server_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.4.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.5.1
+  title: Disable Proxy ARP on interfaces
+  target_field: ip_proxy_arp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.5.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.6.1
+  title: Configure login failure lockout delay
+  target_field: login_delay
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.6.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.7.1
+  title: Configure SNMP system contact
+  target_field: snmp_system_contact
+  operator: exists
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.7.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.7.2
+  title: Configure SNMP system location
+  target_field: snmp_system_location
+  operator: exists
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.7.2
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.8.1
+  title: Disable auxiliary console port if unused
+  target_field: aux_port_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.8.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.9.1
+  title: Enable Control Plane Policing (CoPP)
+  target_field: control_plane_policing
+  operator: equals
+  expected: true
+  severity: high
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.9.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: CIS-9.10.1
+  title: Require NTP authentication
+  target_field: ntp_authentication
+  operator: equals
+  expected: true
+  severity: medium
+  framework: CIS
+  framework_reference: CIS Cisco IOS Benchmark v4.0.0 Section 9.10.1
+  source: CIS Cisco IOS Security Benchmark v4.0.0
+  source_url: https://www.cisecurity.org/cis-benchmarks
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]

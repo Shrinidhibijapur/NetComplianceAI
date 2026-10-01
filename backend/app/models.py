@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class NormalizedConfig(BaseModel):
@@ -31,26 +31,68 @@ class NormalizedConfig(BaseModel):
 
 
 class ComplianceRule(BaseModel):
-    """One control from a framework's YAML rule file (docs/Implementation_Plan.md Section 5)."""
+    """Rule Schema V2: data-driven multi-framework compliance rule."""
 
-    control_id: str
+    control_id: str = ""
+    rule_id: Optional[str] = None
     framework: str
+    framework_reference: Optional[str] = None
     title: str
-    canonical_key: str
-    expected: Any
-    severity: Literal["low", "medium", "high"]
-    remediation: dict[str, str] = Field(default_factory=dict)
+    canonical_key: str = ""
+    target_field: Optional[str] = None
+    operator: str = "equals"
+    expected: Any = None
+    severity: Literal["low", "medium", "high"] = "medium"
+    source: str = ""
+    source_url: Optional[str] = None
+    source_identifier: Optional[str] = None
+    verified: bool = True
+    vendors: list[str] = Field(default_factory=lambda: ["*"])
+    platforms: list[str] = Field(default_factory=lambda: ["*"])
+    remediation: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "rule_id" in data and not data.get("control_id"):
+                data["control_id"] = data["rule_id"]
+            elif "control_id" in data and not data.get("rule_id"):
+                data["rule_id"] = data["control_id"]
+
+            if "target_field" in data and not data.get("canonical_key"):
+                data["canonical_key"] = data["target_field"]
+            elif "canonical_key" in data and not data.get("target_field"):
+                data["target_field"] = data["canonical_key"]
+        return data
 
 
 class Finding(BaseModel):
     control_id: str
+    rule_id: Optional[str] = None
     title: str
+    framework: Optional[str] = None
+    framework_reference: Optional[str] = None
     canonical_key: str
+    operator: str = "equals"
     expected: Any
     actual: Any = None
-    status: Literal["pass", "fail", "unknown"]
+    status: Literal["pass", "fail", "unknown", "not_applicable"]
     severity: Literal["low", "medium", "high"]
+    source: Optional[str] = None
+    verified: bool = True
     remediation: Optional[str] = None
+    remediation_verified: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_finding_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "rule_id" in data and not data.get("control_id"):
+                data["control_id"] = data["rule_id"]
+            elif "control_id" in data and not data.get("rule_id"):
+                data["rule_id"] = data["control_id"]
+        return data
 
 
 class ComplianceReport(BaseModel):

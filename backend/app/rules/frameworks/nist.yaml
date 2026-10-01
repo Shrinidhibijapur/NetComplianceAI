@@ -1,82 +1,452 @@
-# NIST SP 800-53 Rev.5 control mappings, expressed against the same canonical
-# control vocabulary as CIS (docs/Implementation_Plan.md Section 3/5) — this is what
-# makes the compliance engine multi-framework without touching the parsing layer.
-- control_id: NIST-AC-17(2)
-  framework: NIST
-  title: Use cryptographically protected remote access sessions (SSHv2)
-  canonical_key: ssh_version
+# NIST SP 800-53 Rev 5 Control Catalog (OSCAL Mappings)
+# Rule Schema V2 - Data-driven multi-framework rule definition
+
+- rule_id: NIST-AC-17(2)
+  title: Cryptographically Protected Remote Access Sessions (SSHv2)
+  target_field: ssh_version
+  operator: equals
   expected: "2"
   severity: high
-  remediation:
-    cisco_ios: "ip ssh version 2"
-    juniper_junos: "set system services ssh"
-
-- control_id: NIST-AC-17(1)
   framework: NIST
-  title: Prohibit unencrypted remote management protocols (Telnet)
-  canonical_key: telnet_enabled
+  framework_reference: NIST SP 800-53 Rev 5 AC-17(2)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ip ssh version 2", verified: true }
+    juniper_junos: { command: "set system services ssh protocol-version v2", verified: true }
+
+- rule_id: NIST-AC-17(1)
+  title: Prohibit Unencrypted Remote Management Protocols (Telnet)
+  target_field: telnet_enabled
+  operator: equals
   expected: false
   severity: high
-  remediation:
-    cisco_ios: "line vty 0 4\n transport input ssh"
-    juniper_junos: "delete system services telnet"
-
-- control_id: NIST-CM-7
   framework: NIST
-  title: Disable unnecessary management services (HTTP)
-  canonical_key: http_mgmt_enabled
+  framework_reference: NIST SP 800-53 Rev 5 AC-17(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "line vty 0 4\n transport input ssh", verified: true }
+    juniper_junos: { command: "delete system services telnet", verified: true }
+
+- rule_id: NIST-CM-7(1)
+  title: Disable Unnecessary Management Services (HTTP)
+  target_field: http_mgmt_enabled
+  operator: equals
   expected: false
   severity: medium
-  remediation:
-    cisco_ios: "no ip http server"
-    juniper_junos: "delete system services web-management http"
-
-- control_id: NIST-IA-5(1)
   framework: NIST
-  title: Enforce encrypted storage of authenticators
-  canonical_key: password_encryption
-  expected: "type7"
-  severity: medium
+  framework_reference: NIST SP 800-53 Rev 5 CM-7(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
   remediation:
-    cisco_ios: "service password-encryption"
-    juniper_junos: "set system login password format sha512"
+    cisco_ios: { command: "no ip http server", verified: true }
+    juniper_junos: { command: "delete system services web-management http", verified: true }
 
-- control_id: NIST-AU-2
-  framework: NIST
-  title: Generate audit records for administrative access
-  canonical_key: logging_enabled
+- rule_id: NIST-SC-8
+  title: Secure Web Management via Encrypted HTTPS
+  target_field: https_mgmt_enabled
+  operator: equals
   expected: true
   severity: medium
-  remediation:
-    cisco_ios: "logging host <syslog-server-ip>"
-    juniper_junos: "set system syslog host <syslog-server-ip> any any"
-
-- control_id: NIST-AU-8
   framework: NIST
-  title: Use an authoritative time source for audit timestamps
-  canonical_key: ntp_configured
+  framework_reference: NIST SP 800-53 Rev 5 SC-8
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ip http secure-server", verified: true }
+
+- rule_id: NIST-IA-5(1)
+  title: Encrypted Password Format for Authenticator Storage
+  target_field: password_encryption
+  operator: in
+  expected: ["type7", "sha512", "secret", "true"]
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 IA-5(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "service password-encryption", verified: true }
+    juniper_junos: { command: "set system login password format sha512", verified: true }
+
+- rule_id: NIST-AU-2
+  title: Generate Audit Logs for System Access and Events
+  target_field: logging_enabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AU-2
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "logging host <syslog-server-ip>", verified: true }
+
+- rule_id: NIST-AU-8
+  title: Authoritative Time Synchronization (NTP)
+  target_field: ntp_configured
+  operator: equals
   expected: true
   severity: low
-  remediation:
-    cisco_ios: "ntp server <ntp-server-ip>"
-    juniper_junos: "set system ntp server <ntp-server-ip>"
-
-- control_id: NIST-SC-7
   framework: NIST
-  title: Enforce boundary protection with default-deny filtering
-  canonical_key: acl_default_deny
+  framework_reference: NIST SP 800-53 Rev 5 AU-8
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ntp server <ntp-server-ip>", verified: true }
+
+- rule_id: NIST-SC-7
+  title: Network Boundary Default-Deny Filtering
+  target_field: acl_default_deny
+  operator: equals
   expected: true
   severity: high
-  remediation:
-    cisco_ios: "access-list 101 deny ip any any"
-    juniper_junos: "set firewall filter PROTECT term deny-all then discard"
-
-- control_id: NIST-IA-5(7)
   framework: NIST
-  title: No embedded/default authenticators (SNMP community strings)
-  canonical_key: snmp_community_default
+  framework_reference: NIST SP 800-53 Rev 5 SC-7
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "access-list 101 deny ip any any", verified: true }
+
+- rule_id: NIST-IA-5(7)
+  title: Remove Default SNMP Community Strings
+  target_field: snmp_community_default
+  operator: equals
   expected: false
   severity: high
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 IA-5(7)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
   remediation:
-    cisco_ios: "no snmp-server community public\nno snmp-server community private"
-    juniper_junos: "delete snmp community public"
+    cisco_ios: { command: "no snmp-server community public", verified: true }
+
+- rule_id: NIST-IA-2
+  title: Centralized AAA Authentication
+  target_field: aaa_enabled
+  operator: equals
+  expected: true
+  severity: high
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 IA-2
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "aaa new-model", verified: true }
+
+- rule_id: NIST-AC-12
+  title: Console Inactivity Session Termination
+  target_field: console_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AC-12
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "line con 0\n exec-timeout 10 0", verified: true }
+
+- rule_id: NIST-AC-12(1)
+  title: VTY Terminal Session Timeout
+  target_field: vty_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AC-12(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "line vty 0 4\n exec-timeout 10 0", verified: true }
+
+- rule_id: NIST-CM-6
+  title: Restrict Discovery Protocols (CDP)
+  target_field: cdp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 CM-6
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "no cdp run", verified: true }
+
+- rule_id: NIST-CM-7(2)
+  title: Disable IP Source Routing
+  target_field: ip_source_route_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 CM-7(2)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-SC-13
+  title: Strong Cryptographic Algorithms for SSH
+  target_field: ssh_ciphers_restricted
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 SC-13
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-AC-8
+  title: Display System Use Notification Banner
+  target_field: banner_login_set
+  operator: equals
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AC-8
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-SC-5
+  title: Disable IP Directed Broadcasts
+  target_field: ip_directed_broadcast_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 SC-5
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-CM-7(3)
+  title: Disable Legacy Packet Assembler/Disassembler (PAD)
+  target_field: service_pad_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 CM-7(3)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: NIST-SI-4
+  title: TCP Keepalive Verification
+  target_field: tcp_keepalive
+  operator: equals
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 SI-4
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-SI-4(1)
+  title: Spanning Tree BPDU Protection
+  target_field: spanning_tree_bpduguard
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 SI-4(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["cisco_ios", "arista_eos"]
+  platforms: ["*"]
+
+- rule_id: NIST-IA-5(4)
+  title: Minimum Password Length Requirement
+  target_field: password_min_length
+  operator: greater_than
+  expected: 9
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 IA-5(4)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-AU-6
+  title: Remote Syslog Logging Destination
+  target_field: syslog_remote_host
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AU-6
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-CM-7(4)
+  title: Disable Unnecessary TFTP Server
+  target_field: tftp_server_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 CM-7(4)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-SC-7(5)
+  title: Disable Interface Proxy ARP
+  target_field: ip_proxy_arp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 SC-7(5)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: NIST-AC-7
+  title: Failed Login Account Lockout Delay
+  target_field: login_delay
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AC-7
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-CM-8
+  title: SNMP System Contact Information
+  target_field: snmp_system_contact
+  operator: exists
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 CM-8
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-CM-8(1)
+  title: SNMP System Location Information
+  target_field: snmp_system_location
+  operator: exists
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 CM-8(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: NIST-AC-3
+  title: Disable Auxiliary Port Access
+  target_field: aux_port_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AC-3
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: NIST-SC-24
+  title: Control Plane Protection Policy
+  target_field: control_plane_policing
+  operator: equals
+  expected: true
+  severity: high
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 SC-24
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: NIST-AU-8(1)
+  title: NTP Authentication Enforcement
+  target_field: ntp_authentication
+  operator: equals
+  expected: true
+  severity: medium
+  framework: NIST
+  framework_reference: NIST SP 800-53 Rev 5 AU-8(1)
+  source: NIST SP 800-53 Rev 5 OSCAL Control Catalog
+  source_url: https://csrc.nist.gov/publications/detail/sp/800-53/rev-5/final
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]

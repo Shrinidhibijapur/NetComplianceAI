@@ -1,81 +1,461 @@
-# ISO/IEC 27001:2022 Annex A control mappings, against the same canonical control
-# vocabulary as CIS/NIST/STIG (docs/Implementation_Plan.md Section 3/5).
-- control_id: ISO-A.8.24
-  framework: ISO
-  title: Use cryptographic protocols for remote administrative access
-  canonical_key: ssh_version
+# ISO/IEC 27001:2022 Annex A Controls
+# Rule Schema V2 - Data-driven multi-framework rule definition
+# Explicit Category B: Technical Implementation Mappings of Annex A Controls
+
+- rule_id: ISO-A.8.20.1
+  title: Network Controls - Secure SSH Remote Administration
+  target_field: ssh_version
+  operator: equals
   expected: "2"
   severity: high
-  remediation:
-    cisco_ios: "ip ssh version 2"
-    juniper_junos: "set system services ssh"
-
-- control_id: ISO-A.8.20
   framework: ISO
-  title: Disable unencrypted network services (Telnet)
-  canonical_key: telnet_enabled
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ip ssh version 2", verified: true }
+    juniper_junos: { command: "set system services ssh protocol-version v2", verified: true }
+
+- rule_id: ISO-A.8.20.2
+  title: Network Controls - Prohibit Unencrypted Telnet Service
+  target_field: telnet_enabled
+  operator: equals
   expected: false
   severity: high
-  remediation:
-    cisco_ios: "line vty 0 4\n transport input ssh"
-    juniper_junos: "delete system services telnet"
-
-- control_id: ISO-A.8.9
   framework: ISO
-  title: Configuration management — disable unneeded management interfaces
-  canonical_key: http_mgmt_enabled
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "line vty 0 4\n transport input ssh", verified: true }
+    juniper_junos: { command: "delete system services telnet", verified: true }
+
+- rule_id: ISO-A.8.21.1
+  title: Security of Network Services - Disable HTTP Management Interface
+  target_field: http_mgmt_enabled
+  operator: equals
   expected: false
   severity: medium
-  remediation:
-    cisco_ios: "no ip http server"
-    juniper_junos: "delete system services web-management http"
-
-- control_id: ISO-A.8.5
   framework: ISO
-  title: Secure authentication — encrypt stored credentials
-  canonical_key: password_encryption
-  expected: "type7"
-  severity: medium
+  framework_reference: ISO/IEC 27001:2022 Control A.8.21
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
   remediation:
-    cisco_ios: "service password-encryption"
-    juniper_junos: "set system login password format sha512"
+    cisco_ios: { command: "no ip http server", verified: true }
 
-- control_id: ISO-A.8.15
-  framework: ISO
-  title: Logging of administrative access events
-  canonical_key: logging_enabled
+- rule_id: ISO-A.8.24.1
+  title: Use of Cryptography - HTTPS Web Management Encryption
+  target_field: https_mgmt_enabled
+  operator: equals
   expected: true
   severity: medium
-  remediation:
-    cisco_ios: "logging host <syslog-server-ip>"
-    juniper_junos: "set system syslog host <syslog-server-ip> any any"
-
-- control_id: ISO-A.8.17
   framework: ISO
-  title: Clock synchronization for reliable audit timestamps
-  canonical_key: ntp_configured
+  framework_reference: ISO/IEC 27001:2022 Control A.8.24
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.24.2
+  title: Use of Cryptography - Encrypted Credential Storage
+  target_field: password_encryption
+  operator: in
+  expected: ["type7", "sha512", "secret", "true"]
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.24
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.15.1
+  title: Logging - Administrative Access Event Logging
+  target_field: logging_enabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.15
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.17.1
+  title: Clock Synchronization - Authoritative Time Source (NTP)
+  target_field: ntp_configured
+  operator: equals
   expected: true
   severity: low
-  remediation:
-    cisco_ios: "ntp server <ntp-server-ip>"
-    juniper_junos: "set system ntp server <ntp-server-ip>"
-
-- control_id: ISO-A.8.22
   framework: ISO
-  title: Segregation of networks with default-deny boundary filtering
-  canonical_key: acl_default_deny
+  framework_reference: ISO/IEC 27001:2022 Control A.8.17
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.3
+  title: Network Segregation & Filtering - Default-Deny Access Control
+  target_field: acl_default_deny
+  operator: equals
   expected: true
   severity: high
-  remediation:
-    cisco_ios: "access-list 101 deny ip any any"
-    juniper_junos: "set firewall filter PROTECT term deny-all then discard"
-
-- control_id: ISO-A.5.17
   framework: ISO
-  title: No shared/default authentication information (SNMP community strings)
-  canonical_key: snmp_community_default
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.9.1
+  title: Configuration Management - Remove Default SNMP Communities
+  target_field: snmp_community_default
+  operator: equals
   expected: false
   severity: high
-  remediation:
-    cisco_ios: "no snmp-server community public\nno snmp-server community private"
-    juniper_junos: "delete snmp community public"
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.9
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.5.15.1
+  title: Access Control - Centralized AAA User Authentication
+  target_field: aaa_enabled
+  operator: equals
+  expected: true
+  severity: high
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.5.15
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.5.1
+  title: Secure Authentication - Console Session Timeout
+  target_field: console_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.5
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.5.2
+  title: Secure Authentication - VTY Terminal Session Timeout
+  target_field: vty_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.5
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.22.1
+  title: Network Segregation - Restrict Discovery Protocols (CDP)
+  target_field: cdp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.22
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.4
+  title: Network Controls - Disable IP Source Routing
+  target_field: ip_source_route_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.24.3
+  title: Use of Cryptography - Restrict SSH Cipher Suites
+  target_field: ssh_ciphers_restricted
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.24
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.5.15.2
+  title: Access Control - Legal Warning Banner
+  target_field: banner_login_set
+  operator: equals
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.5.15
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.5
+  title: Network Controls - Disable IP Directed Broadcasts
+  target_field: ip_directed_broadcast_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.9.2
+  title: Configuration Management - Disable Obsolete PAD Service
+  target_field: service_pad_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.9
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.6
+  title: Network Controls - TCP Keepalive Active Monitoring
+  target_field: tcp_keepalive
+  operator: equals
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.7
+  title: Network Controls - Spanning Tree BPDU Protection
+  target_field: spanning_tree_bpduguard
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["cisco_ios", "arista_eos"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.5.3
+  title: Secure Authentication - Minimum Password Length Policy
+  target_field: password_min_length
+  operator: greater_than
+  expected: 9
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.5
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.15.2
+  title: Logging - Centralized Log Collection Destination
+  target_field: syslog_remote_host
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.15
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.9.3
+  title: Configuration Management - Disable Unnecessary TFTP Server
+  target_field: tftp_server_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.9
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.8
+  title: Network Controls - Disable Interface Proxy ARP
+  target_field: ip_proxy_arp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.5.15.3
+  title: Access Control - Account Lockout Delay Policy
+  target_field: login_delay
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.5.15
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.9.4
+  title: Asset Inventory - Define SNMP Contact Metadata
+  target_field: snmp_system_contact
+  operator: exists
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.9
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.9.5
+  title: Asset Inventory - Define SNMP Location Metadata
+  target_field: snmp_system_location
+  operator: exists
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.9
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.5.4
+  title: Access Control - Disable Auxiliary Console Port
+  target_field: aux_port_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.5
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.20.9
+  title: Network Controls - Control Plane Protection
+  target_field: control_plane_policing
+  operator: equals
+  expected: true
+  severity: high
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.20
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: ISO-A.8.17.2
+  title: Clock Synchronization - Authenticated Time Exchange
+  target_field: ntp_authentication
+  operator: equals
+  expected: true
+  severity: medium
+  framework: ISO
+  framework_reference: ISO/IEC 27001:2022 Control A.8.17
+  mapping_type: technical_implementation_mapping
+  source: ISO/IEC 27001:2022 Information Security Controls
+  source_url: https://www.iso.org/standard/27001
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]

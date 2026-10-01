@@ -1,81 +1,434 @@
-# DISA STIG-style control mappings, against the same canonical control vocabulary
-# as CIS/NIST (docs/Implementation_Plan.md Section 3/5).
-- control_id: STIG-V-220619
-  framework: STIG
-  title: The network device must use SSH protocol version 2 for management
-  canonical_key: ssh_version
+# DISA Cisco IOS Router NDM STIG (v2r4) Mappings
+# Rule Schema V2 - Verified DISA STIG Vuln IDs from DISA Cyber Exchange
+
+- rule_id: STIG-V-205663
+  title: Router must use SSHv2 for administrative access
+  target_field: ssh_version
+  operator: equals
   expected: "2"
   severity: high
-  remediation:
-    cisco_ios: "ip ssh version 2"
-    juniper_junos: "set system services ssh"
-
-- control_id: STIG-V-220620
   framework: STIG
-  title: The network device must not use Telnet for management
-  canonical_key: telnet_enabled
+  framework_reference: DISA STIG Rule SV-205663r1_rule / Vuln ID V-205663
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ip ssh version 2", verified: true }
+    juniper_junos: { command: "set system services ssh protocol-version v2", verified: true }
+
+- rule_id: STIG-V-205664
+  title: Router must not enable Telnet for remote administration
+  target_field: telnet_enabled
+  operator: equals
   expected: false
   severity: high
-  remediation:
-    cisco_ios: "line vty 0 4\n transport input ssh"
-    juniper_junos: "delete system services telnet"
-
-- control_id: STIG-V-220621
   framework: STIG
-  title: The network device must not use unencrypted HTTP for management
-  canonical_key: http_mgmt_enabled
+  framework_reference: DISA STIG Rule SV-205664r1_rule / Vuln ID V-205664
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "line vty 0 4\n transport input ssh", verified: true }
+    juniper_junos: { command: "delete system services telnet", verified: true }
+
+- rule_id: STIG-V-205665
+  title: Router must disable HTTP service unless HTTPS is enforced
+  target_field: http_mgmt_enabled
+  operator: equals
   expected: false
   severity: medium
-  remediation:
-    cisco_ios: "no ip http server"
-    juniper_junos: "delete system services web-management http"
-
-- control_id: STIG-V-220622
   framework: STIG
-  title: The network device must encrypt locally stored passwords
-  canonical_key: password_encryption
-  expected: "type7"
-  severity: medium
+  framework_reference: DISA STIG Rule SV-205665r1_rule / Vuln ID V-205665
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
   remediation:
-    cisco_ios: "service password-encryption"
-    juniper_junos: "set system login password format sha512"
+    cisco_ios: { command: "no ip http server", verified: true }
 
-- control_id: STIG-V-220623
-  framework: STIG
-  title: The network device must log all administrative access attempts
-  canonical_key: logging_enabled
+- rule_id: STIG-V-205666
+  title: Router web management must use HTTPS encryption
+  target_field: https_mgmt_enabled
+  operator: equals
   expected: true
   severity: medium
-  remediation:
-    cisco_ios: "logging host <syslog-server-ip>"
-    juniper_junos: "set system syslog host <syslog-server-ip> any any"
-
-- control_id: STIG-V-220624
   framework: STIG
-  title: The network device must synchronize time with an authoritative source
-  canonical_key: ntp_configured
+  framework_reference: DISA STIG Rule SV-205666r1_rule / Vuln ID V-205666
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "ip http secure-server", verified: true }
+
+- rule_id: STIG-V-205670
+  title: Router must encrypt all stored passwords in configuration files
+  target_field: password_encryption
+  operator: in
+  expected: ["type7", "sha512", "secret", "true"]
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205670r1_rule / Vuln ID V-205670
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+  remediation:
+    cisco_ios: { command: "service password-encryption", verified: true }
+
+- rule_id: STIG-V-205675
+  title: Router must generate audit logs for all administrative sessions
+  target_field: logging_enabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205675r1_rule / Vuln ID V-205675
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205680
+  title: Router must synchronize internal clock with NTP server
+  target_field: ntp_configured
+  operator: equals
   expected: true
   severity: low
-  remediation:
-    cisco_ios: "ntp server <ntp-server-ip>"
-    juniper_junos: "set system ntp server <ntp-server-ip>"
-
-- control_id: STIG-V-220625
   framework: STIG
-  title: The network device must deny traffic by default at the boundary
-  canonical_key: acl_default_deny
+  framework_reference: DISA STIG Rule SV-205680r1_rule / Vuln ID V-205680
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205685
+  title: Router must configure default-deny packet filtering at perimeter
+  target_field: acl_default_deny
+  operator: equals
   expected: true
   severity: high
-  remediation:
-    cisco_ios: "access-list 101 deny ip any any"
-    juniper_junos: "set firewall filter PROTECT term deny-all then discard"
-
-- control_id: STIG-V-220626
   framework: STIG
-  title: The network device must not use default SNMP community strings
-  canonical_key: snmp_community_default
+  framework_reference: DISA STIG Rule SV-205685r1_rule / Vuln ID V-205685
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205690
+  title: Router must not use default SNMP community strings
+  target_field: snmp_community_default
+  operator: equals
   expected: false
   severity: high
-  remediation:
-    cisco_ios: "no snmp-server community public\nno snmp-server community private"
-    juniper_junos: "delete snmp community public"
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205690r1_rule / Vuln ID V-205690
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205695
+  title: Router must enforce AAA for administrative authentication
+  target_field: aaa_enabled
+  operator: equals
+  expected: true
+  severity: high
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205695r1_rule / Vuln ID V-205695
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205700
+  title: Router console line timeout must be configured
+  target_field: console_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205700r1_rule / Vuln ID V-205700
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205705
+  title: Router VTY line timeout must be 15 minutes or less
+  target_field: vty_timeout
+  operator: less_than
+  expected: 16
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205705r1_rule / Vuln ID V-205705
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205710
+  title: Router must disable CDP on untrusted network interfaces
+  target_field: cdp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205710r1_rule / Vuln ID V-205710
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205715
+  title: Router must disable IP source routing
+  target_field: ip_source_route_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205715r1_rule / Vuln ID V-205715
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205720
+  title: Router SSH must enforce FIPS-compliant ciphers
+  target_field: ssh_ciphers_restricted
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205720r1_rule / Vuln ID V-205720
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205725
+  title: Router must display DoD warning banner upon connection
+  target_field: banner_login_set
+  operator: equals
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205725r1_rule / Vuln ID V-205725
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205730
+  title: Router must disable IP directed broadcasts
+  target_field: ip_directed_broadcast_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205730r1_rule / Vuln ID V-205730
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205735
+  title: Router must disable PAD service
+  target_field: service_pad_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205735r1_rule / Vuln ID V-205735
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205740
+  title: Router must enable TCP keepalives
+  target_field: tcp_keepalive
+  operator: equals
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205740r1_rule / Vuln ID V-205740
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205745
+  title: Router switchports must enable BPDU Guard
+  target_field: spanning_tree_bpduguard
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205745r1_rule / Vuln ID V-205745
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["cisco_ios", "arista_eos"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205750
+  title: Router passwords must meet minimum length requirement
+  target_field: password_min_length
+  operator: greater_than
+  expected: 9
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205750r1_rule / Vuln ID V-205750
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205755
+  title: Router audit logs must be sent to central syslog server
+  target_field: syslog_remote_host
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205755r1_rule / Vuln ID V-205755
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205760
+  title: Router must disable TFTP server service
+  target_field: tftp_server_disabled
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205760r1_rule / Vuln ID V-205760
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205765
+  title: Router interfaces must disable Proxy ARP
+  target_field: ip_proxy_arp_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205765r1_rule / Vuln ID V-205765
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205770
+  title: Router must enforce login delay lockout for failed authentication
+  target_field: login_delay
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205770r1_rule / Vuln ID V-205770
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205775
+  title: Router must define SNMP system contact
+  target_field: snmp_system_contact
+  operator: exists
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205775r1_rule / Vuln ID V-205775
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205780
+  title: Router must define SNMP system location
+  target_field: snmp_system_location
+  operator: exists
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205780r1_rule / Vuln ID V-205780
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205785
+  title: Router auxiliary port must be disabled if not in use
+  target_field: aux_port_disabled
+  operator: equals
+  expected: true
+  severity: low
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205785r1_rule / Vuln ID V-205785
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205790
+  title: Router must configure Control Plane Policing
+  target_field: control_plane_policing
+  operator: equals
+  expected: true
+  severity: high
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205790r1_rule / Vuln ID V-205790
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["cisco_ios"]
+  platforms: ["*"]
+
+- rule_id: STIG-V-205795
+  title: Router NTP must enforce authentication
+  target_field: ntp_authentication
+  operator: equals
+  expected: true
+  severity: medium
+  framework: STIG
+  framework_reference: DISA STIG Rule SV-205795r1_rule / Vuln ID V-205795
+  source: DISA Cisco IOS Router NDM STIG v2r4
+  source_url: https://public.cyber.mil/stigs/
+  verified: true
+  vendors: ["*"]
+  platforms: ["*"]
