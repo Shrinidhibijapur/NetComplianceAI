@@ -1,0 +1,27 @@
+# Dummy vendor profile — tests the "add a new vendor with no Python change" guarantee.
+# Verified by test_vendor_profiles.py::test_adding_profile_yaml_makes_new_vendor_parse.
+vendor: dummy_vendor
+display_name: Dummy Test Vendor
+config_style: key_value
+
+fingerprints:
+  - "^dummy-config-start"
+  - "^dummy-secure-feature"
+
+identity:
+  hostname:
+    pattern: "^dummy-hostname\\s+(\\S+)"
+    group: 1
+
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^dummy-ssh-version (\\d+)"
+        value_type: str
+        group: 1
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^dummy-logging enable"
+        value_type: bool
+        value: true

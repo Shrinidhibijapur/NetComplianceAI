@@ -72,10 +72,12 @@ def test_vendor_text_is_normalized(typed):
     assert _upload(CISCO, vendor=typed).json()["vendor"] == "cisco_ios"
 
 
-def test_unlisted_vendor_kept_as_typed_for_training():
+def test_vendor_is_normalized_and_profile_used():
+    # Phase 2: "SONiC" now has a YAML profile so it is recognized and produces controls.
     body = _upload(b"ssh-server enable\n", vendor="SONiC").json()
     assert body["vendor"] == "sonic"
-    assert body["controls"] == {}
+    # ssh-server enable is recognized by the sonic profile
+    assert "ssh_version" in body["controls"]
 
 
 @pytest.mark.parametrize("blank", ["", "auto"])
@@ -86,7 +88,8 @@ def test_blank_vendor_is_sniffed_for_existing_vendors(blank):
 
 
 def test_unrecognizable_content_with_no_vendor_is_unknown_not_guessed():
-    body = _upload(b"ssh-server enable\nlogging server 10.0.0.1\n", vendor="").json()
+    # Use content that doesn't match any profile fingerprint
+    body = _upload(b"totally-proprietary-knob enable\nsome-other-thing 42\n", vendor="").json()
     assert (body["vendor"], body["vendor_source"]) == ("unknown", "undetected")
 
 

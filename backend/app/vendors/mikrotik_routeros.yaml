@@ -1,0 +1,109 @@
+# Vendor profile: MikroTik RouterOS
+vendor: mikrotik_routeros
+display_name: MikroTik RouterOS
+config_style: key_value   # "/menu/path  add|set key=value" style
+
+fingerprints:
+  - "^/ip firewall"
+  - "^/system identity"
+  - "^/ip ssh"
+  - "^/tool netwatch"
+  - "^/user group"
+  - "^/system logging"
+  - "^/ip service"
+
+identity:
+  hostname:
+    pattern: "^/system identity\\s+set name=(\\S+)"
+    group: 1
+  os_version:
+    pattern: "^# RouterOS\\s+([\\d\\.]+)"
+    group: 1
+  model:
+    pattern: "^# model\\s*=\\s*(\\S+)"
+    group: 1
+  serial_number:
+    pattern: "^# serial-number\\s*=\\s*(\\S+)"
+    group: 1
+
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^/ip ssh\\s+set.*strong-crypto=yes"
+        value_type: str
+        value: "2"
+      - pattern: "^/ip ssh"
+        value_type: str
+        value: "2"
+
+  - control_key: telnet_enabled
+    patterns:
+      - pattern: "/ip service.*set telnet.*disabled=yes"
+        value_type: bool
+        value: false
+      - pattern: "/ip service.*set telnet.*disabled=no"
+        value_type: bool
+        value: true
+      - pattern: "^/ip service\\s+disable\\s+telnet"
+        value_type: bool
+        value: false
+
+  - control_key: http_mgmt_enabled
+    patterns:
+      - pattern: "/ip service.*set www.*disabled=yes"
+        value_type: bool
+        value: false
+      - pattern: "/ip service.*set www.*disabled=no"
+        value_type: bool
+        value: true
+
+  - control_key: https_mgmt_enabled
+    patterns:
+      - pattern: "/ip service.*set www-ssl.*disabled=no"
+        value_type: bool
+        value: true
+      - pattern: "/ip service.*set www-ssl.*disabled=yes"
+        value_type: bool
+        value: false
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^/system logging add"
+        value_type: bool
+        value: true
+
+  - control_key: ntp_configured
+    patterns:
+      - pattern: "^/system ntp client\\s+set.*enabled=yes"
+        value_type: bool
+        value: true
+      - pattern: "^/system ntp client\\s+set.*primary-ntp"
+        value_type: bool
+        value: true
+
+  - control_key: acl_default_deny
+    patterns:
+      - pattern: "^/ip firewall filter add.*action=drop.*chain=forward"
+        value_type: bool
+        value: true
+      - pattern: "drop.*chain=input"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "^/snmp community\\s+set.*name=(public|private)"
+        value_type: bool
+        value: true
+
+  - control_key: vty_timeout
+    patterns:
+      - pattern: "^/ip service\\s+set.*timeout=(\\d+)"
+        value_type: str
+        group: 1
+
+  - control_key: aaa_enabled
+    patterns:
+      - pattern: "^/radius add"
+        value_type: bool
+        value: true

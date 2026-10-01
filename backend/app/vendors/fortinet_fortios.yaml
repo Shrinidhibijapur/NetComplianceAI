@@ -1,0 +1,112 @@
+# Vendor profile: Fortinet FortiOS
+vendor: fortinet_fortios
+display_name: Fortinet FortiOS
+config_style: indented_block   # "config ... / set ... / end" hierarchical blocks
+
+fingerprints:
+  - "^config system global"
+  - "^config system interface"
+  - "^config firewall policy"
+  - "^config vpn ssl settings"
+  - "^config system admin"
+  - "^set admintimeout"
+  - "^config system snmp"
+
+identity:
+  hostname:
+    pattern: "^\\s*set hostname\\s+(\\S+)"
+    group: 1
+  os_version:
+    pattern: "#config-version=([^:]+):"
+    group: 1
+  model:
+    pattern: "#conf_file_ver=.*?model=(\\S+)"
+    group: 1
+  serial_number:
+    pattern: "#conf_file_ver=.*?serial=(\\S+)"
+    group: 1
+
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^\\s*set ssh-hostkey-type"
+        value_type: str
+        value: "2"
+      - pattern: "^\\s*set admin-ssh-grace-time"
+        value_type: str
+        value: "2"
+
+  - control_key: telnet_enabled
+    patterns:
+      - pattern: "^\\s*set admintimeout"
+        value_type: bool
+        value: false
+        # telnet: check admin-telnet setting
+      - pattern: "^\\s*set admin-telnet enable"
+        value_type: bool
+        value: true
+      - pattern: "^\\s*set admin-telnet disable"
+        value_type: bool
+        value: false
+
+  - control_key: http_mgmt_enabled
+    patterns:
+      - pattern: "^\\s*set admin-port\\s+80\\b"
+        value_type: bool
+        value: true
+      - pattern: "^\\s*unset admin-sport"
+        value_type: bool
+        value: false
+
+  - control_key: https_mgmt_enabled
+    patterns:
+      - pattern: "^\\s*set admin-sport\\s+(\\d+)"
+        value_type: bool
+        value: true
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^config log syslogd setting"
+        value_type: bool
+        value: true
+      - pattern: "^\\s*set status enable"
+        parent_pattern: "^config log"
+        value_type: bool
+        value: true
+
+  - control_key: ntp_configured
+    patterns:
+      - pattern: "^\\s*set ntpsync enable"
+        value_type: bool
+        value: true
+      - pattern: "^\\s*set server\\s+\\S"
+        parent_pattern: "^config system ntp"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "^\\s*set name (public|private)\\b"
+        value_type: bool
+        value: true
+
+  - control_key: aaa_enabled
+    patterns:
+      - pattern: "^config system radius"
+        value_type: bool
+        value: true
+      - pattern: "^config system ldap"
+        value_type: bool
+        value: true
+
+  - control_key: vty_timeout
+    patterns:
+      - pattern: "^\\s*set admintimeout\\s+(\\d+)"
+        value_type: str
+        group: 1
+
+  - control_key: password_encryption
+    patterns:
+      - pattern: "^\\s*set password-policy status enable"
+        value_type: str
+        value: enabled

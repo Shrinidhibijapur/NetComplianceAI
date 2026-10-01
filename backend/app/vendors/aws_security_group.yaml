@@ -1,0 +1,66 @@
+# Vendor profile: AWS Security Group (cloud JSON policy)
+# Uploaded as a JSON text dump; patterns target JSON key-value structure.
+vendor: aws_security_group
+display_name: AWS Security Group (Cloud JSON)
+config_style: json
+
+fingerprints:
+  - "\"GroupId\""
+  - "\"IpPermissions\""
+  - "\"SecurityGroups\""
+  - "\"VpcId\""
+  - "\"OwnerId\""
+
+identity:
+  hostname:
+    pattern: "\"GroupName\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+  model:
+    pattern: "\"VpcId\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+  serial_number:
+    pattern: "\"GroupId\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+  os_version:
+    pattern: "\"Description\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+
+controls:
+  - control_key: acl_default_deny
+    patterns:
+      - pattern: "\"IpRanges\"\\s*:\\s*\\[\\s*\\]"
+        value_type: bool
+        value: true
+      - pattern: "0\\.0\\.0\\.0/0"
+        value_type: bool
+        value: false
+
+  - control_key: http_mgmt_enabled
+    patterns:
+      - pattern: "\"FromPort\"\\s*:\\s*80[,\\s]"
+        value_type: bool
+        value: true
+
+  - control_key: https_mgmt_enabled
+    patterns:
+      - pattern: "\"FromPort\"\\s*:\\s*443[,\\s]"
+        value_type: bool
+        value: true
+
+  - control_key: ssh_version
+    patterns:
+      - pattern: "\"FromPort\"\\s*:\\s*22[,\\s]"
+        value_type: str
+        value: "2"
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "\"FlowLogStatus\"\\s*:\\s*\"ACTIVE\""
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "\"FromPort\"\\s*:\\s*161[,\\s].*0\\.0\\.0\\.0/0"
+        value_type: bool
+        value: true

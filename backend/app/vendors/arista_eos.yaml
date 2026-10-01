@@ -1,0 +1,112 @@
+# Vendor profile: Arista EOS
+vendor: arista_eos
+display_name: Arista EOS
+config_style: indented_block   # Arista uses Cisco-like indented block syntax
+
+fingerprints:
+  - "^ip ssh version"
+  - "^management api http-commands"
+  - "^daemon TerminAttr"
+  - "^transceiver qsfp default-mode"
+  - "^spanning-tree mode mstp"
+  - "^hardware speed-group"
+
+identity:
+  hostname:
+    pattern: "^hostname\\s+(\\S+)"
+    group: 1
+  os_version:
+    pattern: "^!\\s*EOS version\\s+([\\d\\.\\w]+)"
+    group: 1
+  model:
+    pattern: "^!\\s*model:\\s*(\\S+)"
+    group: 1
+  serial_number:
+    pattern: "^!\\s*serial number:\\s*(\\S+)"
+    group: 1
+
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^ip ssh version (\\d+)"
+        value_type: str
+        group: 1
+
+  - control_key: telnet_enabled
+    patterns:
+      - pattern: "^\\s*transport input ssh"
+        value_type: bool
+        value: false
+      - pattern: "^management telnet"
+        value_type: bool
+        value: true
+
+  - control_key: http_mgmt_enabled
+    patterns:
+      - pattern: "^no management api http-commands"
+        value_type: bool
+        value: false
+      - pattern: "^management api http-commands"
+        value_type: bool
+        value: true
+
+  - control_key: https_mgmt_enabled
+    patterns:
+      - pattern: "^\\s*no shutdown"
+        value_type: bool
+        value: true
+        parent_pattern: "^management api http-commands"
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^logging host\\s"
+        value_type: bool
+        value: true
+      - pattern: "^logging on"
+        value_type: bool
+        value: true
+
+  - control_key: ntp_configured
+    patterns:
+      - pattern: "^ntp server\\s"
+        value_type: bool
+        value: true
+
+  - control_key: acl_default_deny
+    patterns:
+      - pattern: "deny ip any any"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "^snmp-server community (public|private)\\s"
+        value_type: bool
+        value: true
+
+  - control_key: aaa_enabled
+    patterns:
+      - pattern: "^aaa authentication"
+        value_type: bool
+        value: true
+
+  - control_key: password_encryption
+    patterns:
+      - pattern: "^service password-encryption"
+        value_type: str
+        value: type7
+
+  - control_key: cdp_disabled
+    patterns:
+      - pattern: "^no cdp run"
+        value_type: bool
+        value: true
+      - pattern: "^cdp run"
+        value_type: bool
+        value: false
+
+  - control_key: vty_timeout
+    patterns:
+      - pattern: "^\\s*idle-timeout\\s+(\\d+)"
+        value_type: str
+        group: 1

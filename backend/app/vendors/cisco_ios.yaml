@@ -1,0 +1,148 @@
+# Vendor profile: Cisco IOS / IOS-XE
+# Phase 2: data-driven, no Python edits needed to add rules.
+vendor: cisco_ios
+display_name: Cisco IOS / IOS-XE
+config_style: indented_block   # parent blocks use indented children
+
+# ── Fingerprints ─────────────────────────────────────────────────────────────
+# Any single hit is enough to identify this vendor.
+fingerprints:
+  - "^ip ssh version"
+  - "^service password-encryption"
+  - "^line vty"
+  - "^ip http server"
+  - "^snmp-server community"
+  - "^crypto key generate rsa"
+  - "^aaa new-model"
+
+# ── Device identity extractors ────────────────────────────────────────────────
+identity:
+  hostname:
+    pattern: "^hostname\\s+(\\S+)"
+    group: 1
+  os_version:
+    pattern: "^version\\s+([\\d\\.]+)"
+    group: 1
+  serial_number:
+    pattern: "^\\*\\s*Serial\\s+Number\\s*:\\s*(\\S+)"
+    group: 1
+  model:
+    pattern: "^Model\\s+Number\\s*:\\s*(\\S+)"
+    group: 1
+
+# ── Control line patterns ─────────────────────────────────────────────────────
+# Each entry maps one (or more) regexes to a canonical control field.
+# First match wins per control_key.  value_type: bool|str|absent
+# For patterns inside parent blocks, set parent_pattern to anchor to that block.
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^ip ssh version (\\d+)"
+        value_type: str
+        group: 1
+
+  - control_key: telnet_enabled
+    patterns:
+      # transport input ssh inside any line vty block means telnet is OFF
+      - pattern: "^\\s*transport input ssh\\s*$"
+        value_type: bool
+        value: false
+      # transport input telnet or transport input all = telnet ON
+      - pattern: "^\\s*transport input.*(telnet|all)"
+        value_type: bool
+        value: true
+
+  - control_key: http_mgmt_enabled
+    patterns:
+      - pattern: "^no ip http server"
+        value_type: bool
+        value: false
+      - pattern: "^ip http server"
+        value_type: bool
+        value: true
+
+  - control_key: https_mgmt_enabled
+    patterns:
+      - pattern: "^no ip http secure-server"
+        value_type: bool
+        value: false
+      - pattern: "^ip http secure-server"
+        value_type: bool
+        value: true
+
+  - control_key: password_encryption
+    patterns:
+      - pattern: "^service password-encryption"
+        value_type: str
+        value: type7
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^logging (host|buffered|trap)\\s"
+        value_type: bool
+        value: true
+
+  - control_key: ntp_configured
+    patterns:
+      - pattern: "^ntp server\\s"
+        value_type: bool
+        value: true
+
+  - control_key: acl_default_deny
+    patterns:
+      - pattern: "deny\\s+ip\\s+any\\s+any"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "^snmp-server community (public|private)\\s"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_version
+    patterns:
+      - pattern: "^snmp-server group\\s+\\S+\\s+(v3)"
+        value_type: str
+        group: 1
+
+  - control_key: aaa_enabled
+    patterns:
+      - pattern: "^aaa new-model"
+        value_type: bool
+        value: true
+
+  - control_key: vty_timeout
+    patterns:
+      - pattern: "^\\s*exec-timeout\\s+(\\d+)\\s*(\\d*)"
+        value_type: str
+        group: 1
+        # note: first digit is minutes; combine downstream if needed
+
+  - control_key: ssh_ciphers_restricted
+    patterns:
+      - pattern: "^ip ssh server algorithm encryption"
+        value_type: bool
+        value: true
+
+  - control_key: cdp_disabled
+    patterns:
+      - pattern: "^no cdp run"
+        value_type: bool
+        value: true
+      - pattern: "^cdp run"
+        value_type: bool
+        value: false
+
+  - control_key: ip_source_route_disabled
+    patterns:
+      - pattern: "^no ip source-route"
+        value_type: bool
+        value: true
+
+  - control_key: console_timeout
+    patterns:
+      - pattern: "^\\s*exec-timeout\\s+(\\d+)"
+        value_type: str
+        group: 1
+        parent_pattern: "^line con"

@@ -1,0 +1,110 @@
+# Vendor profile: Juniper JunOS
+vendor: juniper_junos
+display_name: Juniper Networks JunOS
+config_style: set_line   # flat "set <hierarchy> <value>" commands
+
+fingerprints:
+  - "^set system services ssh"
+  - "^set system host-name"
+  - "^set interfaces "
+  - "^set security "
+  - "^set firewall filter"
+  - "^set snmp community"
+  - "^set protocols "
+
+identity:
+  hostname:
+    pattern: "^set system host-name\\s+(\\S+)"
+    group: 1
+  os_version:
+    pattern: "^## Last changed.*JUNOS\\s+([\\d\\.\\w]+)"
+    group: 1
+  serial_number:
+    # Not in running-config; marked absent
+    pattern: "^#.*Serial\\s+Number\\s*:\\s*(\\S+)"
+    group: 1
+  model:
+    pattern: "^## Hardware Model:\\s*(\\S+)"
+    group: 1
+
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^set system services ssh\\b"
+        value_type: str
+        value: "2"   # JunOS SSH is always v2
+
+  - control_key: telnet_enabled
+    patterns:
+      - pattern: "^set system services telnet\\b"
+        value_type: bool
+        value: true
+
+  - control_key: http_mgmt_enabled
+    patterns:
+      - pattern: "^set system services web-management http\\b"
+        value_type: bool
+        value: true
+
+  - control_key: https_mgmt_enabled
+    patterns:
+      - pattern: "^set system services web-management https\\b"
+        value_type: bool
+        value: true
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^set system syslog host\\s"
+        value_type: bool
+        value: true
+      - pattern: "^set system syslog\\s"
+        value_type: bool
+        value: true
+
+  - control_key: ntp_configured
+    patterns:
+      - pattern: "^set system ntp server\\s"
+        value_type: bool
+        value: true
+
+  - control_key: acl_default_deny
+    patterns:
+      - pattern: "^set firewall filter \\S+ term \\S+ then discard\\b"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "^set snmp community (public|private)\\b"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_version
+    patterns:
+      - pattern: "^set snmp v3"
+        value_type: str
+        value: v3
+
+  - control_key: aaa_enabled
+    patterns:
+      - pattern: "^set system authentication-order"
+        value_type: bool
+        value: true
+
+  - control_key: vty_timeout
+    patterns:
+      - pattern: "^set system login idle-timeout\\s+(\\d+)"
+        value_type: str
+        group: 1
+
+  - control_key: password_encryption
+    patterns:
+      - pattern: "^set system login password format sha512"
+        value_type: str
+        value: sha512
+      - pattern: "^set system login password format sha256"
+        value_type: str
+        value: sha256
+      - pattern: "^set system login password format md5"
+        value_type: str
+        value: md5

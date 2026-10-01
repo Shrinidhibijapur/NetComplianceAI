@@ -11,6 +11,9 @@ class NormalizedConfig(BaseModel):
     device_id: str
     vendor: str
     vendor_source: Optional[str] = None  # "manual" | "sniffed" | "undetected"
+    # Phase 2: device identity — populated from profile identity extractors
+    hostname: Optional[str] = None
+    model: Optional[str] = None
     os_version: Optional[str] = None
     serial_number: Optional[str] = None
     parsed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -1,0 +1,86 @@
+# Vendor profile: SONiC (Software for Open Networking in the Cloud)
+# config_db.json key-value style; uploaded as text dump or JSON-like config.
+vendor: sonic
+display_name: SONiC (Open Networking)
+config_style: key_value
+
+fingerprints:
+  - "^ssh-server enable"
+  - "^aaa authentication"
+  - "^ntp add"
+  - "^DEVICE_METADATA"
+  - "\"DEVICE_METADATA\""
+  - "\"hostname\":"
+  - "^logging server"
+
+identity:
+  hostname:
+    pattern: "\"hostname\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+  os_version:
+    pattern: "\"sonic_build_version\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+  model:
+    pattern: "\"platform\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+  serial_number:
+    pattern: "\"serial_number\"\\s*:\\s*\"([^\"]+)\""
+    group: 1
+
+controls:
+  - control_key: ssh_version
+    patterns:
+      - pattern: "^ssh-server enable"
+        value_type: str
+        value: "2"
+      - pattern: "\"ssh_enable\"\\s*:\\s*\"true\""
+        value_type: str
+        value: "2"
+
+  - control_key: telnet_enabled
+    patterns:
+      - pattern: "^telnet-server disable"
+        value_type: bool
+        value: false
+      - pattern: "^telnet-server enable"
+        value_type: bool
+        value: true
+
+  - control_key: logging_enabled
+    patterns:
+      - pattern: "^logging server\\s"
+        value_type: bool
+        value: true
+      - pattern: "\"SYSLOG_SERVER\""
+        value_type: bool
+        value: true
+
+  - control_key: ntp_configured
+    patterns:
+      - pattern: "^ntp add\\s"
+        value_type: bool
+        value: true
+      - pattern: "\"NTP_SERVER\""
+        value_type: bool
+        value: true
+
+  - control_key: aaa_enabled
+    patterns:
+      - pattern: "^aaa authentication"
+        value_type: bool
+        value: true
+
+  - control_key: snmp_community_default
+    patterns:
+      - pattern: "\"community\"\\s*:\\s*\"(public|private)\""
+        value_type: bool
+        value: true
+
+  - control_key: acl_default_deny
+    patterns:
+      - pattern: "\"DENY_ALL\""
+        value_type: bool
+        value: true
+      - pattern: "deny.*any.*any"
+        value_type: bool
+        value: true

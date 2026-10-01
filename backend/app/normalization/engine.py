@@ -1,5 +1,14 @@
+"""
+Normalization engine — Phase 2 update.
+
+Dispatch order:
+  1. If the vendor has a YAML profile (app/vendors/*.yaml), use the profile engine
+     which extracts device identity, supports parent-block context, and records evidence.
+  2. Otherwise fall back to Phase 1 VENDOR_RULES (hardcoded regexes in rules.py).
+     This ensures existing Cisco/Juniper tests keep passing while profile coverage grows.
+"""
+
 from ..models import NormalizedConfig
-from .rules import VENDOR_RULES
 
 
 def _is_interesting(line: str) -> bool:
@@ -8,16 +17,18 @@ def _is_interesting(line: str) -> bool:
 
 
 def normalize_config(vendor: str, device_id: str, raw_config: str) -> NormalizedConfig:
-    """L1 normalization: known-vendor line matching into the canonical control schema.
+    """L1 normalization: delegate to profile engine or legacy rules."""
+    # Phase 2: try the data-driven profile first.
+    from ..vendors.loader import VENDOR_PROFILES
+    if vendor in VENDOR_PROFILES:
+        from .profile_engine import normalize_with_profile
+        return normalize_with_profile(vendor, device_id, raw_config)
 
-    A vendor with no registered L1 rules (anything outside VENDOR_RULES — a "White Box"/SONiC
-    device, a brand-new firewall vendor, etc.) isn't rejected: it just has zero rules to match,
-    so every line falls straight through to `raw_unmapped_lines`. That's the L1->L3 handoff
-    (Section 3) — Phase 4's AI training loop is what actually makes such a vendor usable.
-    """
+    # Phase 1 fallback for vendors not yet in a profile.
+    from .rules import VENDOR_RULES
+
     rules = VENDOR_RULES.get(vendor, [])
-
-    controls: dict[str, object] = {}
+    controls: dict = {}
     matched_line_numbers: set[int] = set()
 
     for rule in rules:
@@ -35,7 +46,6 @@ def normalize_config(vendor: str, device_id: str, raw_config: str) -> Normalized
         if i not in matched_line_numbers and _is_interesting(line)
     ]
 
-    # Meaning (see NormalizedConfig.parse_confidence): share of meaningful lines we recognized.
     meaningful = sum(1 for line in lines if _is_interesting(line))
     parse_confidence = round((meaningful - len(raw_unmapped_lines)) / meaningful, 2) if meaningful else 0.0
 
@@ -46,3 +56,4 @@ def normalize_config(vendor: str, device_id: str, raw_config: str) -> Normalized
         raw_unmapped_lines=raw_unmapped_lines,
         parse_confidence=parse_confidence,
     )
+
