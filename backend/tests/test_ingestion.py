@@ -26,7 +26,8 @@ def test_upload_cisco_config():
     assert isinstance(body["id"], int)
     assert body["device_id"] == "core-sw-01"
     assert body["controls"]["ssh_version"] == "2"
-    assert body["parse_confidence"] == round(8 / 9, 2)
+    # 8 of 12 meaningful lines recognized (see NormalizedConfig.parse_confidence)
+    assert body["parse_confidence"] == round(8 / 12, 2)
 
 
 def test_upload_vendor_with_no_l1_rules_still_succeeds():

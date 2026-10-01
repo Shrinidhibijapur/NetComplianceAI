@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..db import ConfigRecord, TrainingExampleRow, get_db
 from ..models import LabelRequest, PendingTrainingResponse
+from .embedder import EmbeddingUnavailable
 from .engine import classify_line
 from .state import vector_store
 from .store import TrainingExample
@@ -17,7 +18,10 @@ def pending_lines(config_id: int, db: Session = Depends(get_db)) -> PendingTrain
         raise HTTPException(status_code=404, detail=f"No config record with id {config_id}")
 
     raw_unmapped_lines = record.normalized.get("raw_unmapped_lines", [])
-    classifications = [classify_line(vector_store, line) for line in raw_unmapped_lines]
+    try:
+        classifications = [classify_line(vector_store, line) for line in raw_unmapped_lines]
+    except EmbeddingUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return PendingTrainingResponse(
         device_id=record.device_id, vendor=record.vendor, classifications=classifications
@@ -38,8 +42,12 @@ def label_line(payload: LabelRequest, db: Session = Depends(get_db)) -> dict:
     db.commit()
     db.refresh(row)
 
-    vector_store.add(
-        TrainingExample(id=row.id, vendor=row.vendor, line_text=row.line_text, canonical_key=row.canonical_key)
-    )
+    try:
+        vector_store.add(
+            TrainingExample(id=row.id, vendor=row.vendor, line_text=row.line_text, canonical_key=row.canonical_key)
+        )
+    except EmbeddingUnavailable:
+        # The label is safely stored; it joins the index at the next start with the model available.
+        return {"status": "saved_not_indexed", "id": row.id}
 
     return {"status": "learned", "id": row.id}

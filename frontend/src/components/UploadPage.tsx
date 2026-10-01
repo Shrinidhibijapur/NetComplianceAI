@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, KNOWN_VENDORS } from "../api";
+import { api, AUTO_VENDOR, KNOWN_VENDORS } from "../api";
 import { SAMPLE_CONFIGS, sampleAsFile } from "../samples";
 import { toast } from "../toast";
 
@@ -14,7 +14,7 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
 
   // single-mode state
   const [file, setFile] = useState<File | null>(null);
-  const [vendor, setVendor] = useState<string>(KNOWN_VENDORS[0]);
+  const [vendor, setVendor] = useState<string>(AUTO_VENDOR);
   const [customVendor, setCustomVendor] = useState("");
   const [deviceId, setDeviceId] = useState("");
 
@@ -25,7 +25,7 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
-  const effectiveVendor = vendor === "__other__" ? customVendor.trim() : vendor;
+  const effectiveVendor = vendor === "__other__" ? customVendor.trim() : vendor; // "" = auto-detect
 
   function loadSample(index: number) {
     const sample = SAMPLE_CONFIGS[index];
@@ -50,15 +50,15 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
     if (!fileList) return;
     const additions: BulkItem[] = Array.from(fileList).map((f) => ({
       file: f,
-      vendor: KNOWN_VENDORS[0],
+      vendor: AUTO_VENDOR,
       deviceId: f.name.replace(/\.[^.]+$/, ""),
     }));
     setItems((prev) => [...prev, ...additions]);
   }
 
   async function submitSingle() {
-    if (!file || !effectiveVendor || !deviceId) {
-      setError("File, vendor and device ID are all required.");
+    if (!file || !deviceId || (vendor === "__other__" && !effectiveVendor)) {
+      setError("File and device ID are required (and a name if you chose Other).");
       return;
     }
     setBusy(true);
@@ -90,9 +90,18 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
       const results = await api.uploadBulk(
         items.map((i) => ({ file: i.file, vendor: i.vendor, deviceId: i.deviceId })),
       );
-      toast(`Ingested ${results.length} device(s) in this batch.`, "success");
-      setItems([]);
-      onUploaded();
+      const failed = results.filter((r) => r.status === "error");
+      const ok = results.length - failed.length;
+      if (failed.length === 0) {
+        toast(`Ingested ${ok} device(s) in this batch.`, "success");
+        setItems([]);
+      } else {
+        toast(`Ingested ${ok} device(s); ${failed.length} failed.`, "error");
+        setError(failed.map((r) => `${r.filename}: ${r.error}`).join(" | "));
+        // keep only the failed files so they can be fixed and retried
+        setItems((prev) => prev.filter((i) => failed.some((f) => f.filename === i.file.name && f.device_id === i.deviceId)));
+      }
+      if (ok > 0) onUploaded();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -179,8 +188,14 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
               />
             </div>
             <div className="field">
-              <label>Vendor — click to pick</label>
+              <label>Vendor — optional override</label>
               <div className="chip-row">
+                <span
+                  className={`chip${vendor === AUTO_VENDOR ? " selected" : ""}`}
+                  onClick={() => setVendor(AUTO_VENDOR)}
+                >
+                  Auto-detect
+                </span>
                 {KNOWN_VENDORS.map((v) => (
                   <span
                     key={v}
@@ -261,6 +276,7 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
                       )
                     }
                   >
+                    <option value={AUTO_VENDOR}>auto-detect</option>
                     {KNOWN_VENDORS.map((v) => (
                       <option key={v} value={v}>
                         {v}

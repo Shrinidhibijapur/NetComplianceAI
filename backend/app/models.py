@@ -10,12 +10,21 @@ class NormalizedConfig(BaseModel):
     id: Optional[int] = None  # set after the upload is persisted; pass this to /compliance/evaluate
     device_id: str
     vendor: str
+    vendor_source: Optional[str] = None  # "manual" | "sniffed" | "undetected"
     os_version: Optional[str] = None
     serial_number: Optional[str] = None
     parsed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     controls: dict[str, Any] = Field(default_factory=dict)
     raw_unmapped_lines: list[str] = Field(default_factory=list)
-    parse_confidence: float = 0.0
+    parse_confidence: float = Field(
+        default=0.0,
+        description=(
+            "Parse coverage in [0,1]: recognized config lines / meaningful lines (non-blank, "
+            "non-comment). 0.0 = nothing understood (e.g. no parser for the vendor); 1.0 = every "
+            "line mapped. It measures how much of THIS file the parser understood, not whether "
+            "the device is secure."
+        ),
+    )
 
 
 class ComplianceRule(BaseModel):
@@ -61,7 +70,10 @@ class LineClassification(BaseModel):
 
     line_text: str
     suggested_canonical_key: Optional[str] = None
-    confidence: float
+    confidence: float = Field(
+        description="Cosine similarity in [0,1] between this line and its nearest human-labeled "
+        "example (embedding retrieval, not a calibrated probability)."
+    )
     needs_labeling: bool
     matched_examples: list[MatchedExample] = Field(default_factory=list)
 
@@ -76,3 +88,13 @@ class LabelRequest(BaseModel):
     vendor: str
     line_text: str
     canonical_key: str
+
+
+class BulkItemResult(BaseModel):
+    """One file's outcome in a bulk upload; a failed file never aborts the rest."""
+
+    filename: str
+    device_id: str
+    status: Literal["ok", "error"]
+    result: Optional[NormalizedConfig] = None
+    error: Optional[str] = None

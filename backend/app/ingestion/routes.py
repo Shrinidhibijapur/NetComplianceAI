@@ -1,20 +1,34 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from .. import config
+from ..audit import log_event
 from ..db import ConfigRecord, get_db
-from ..models import NormalizedConfig
+from ..models import BulkItemResult, NormalizedConfig
 from ..normalization.engine import normalize_config
 from .redaction import redact_secrets
+from .validation import UploadRejected, validate_and_decode
+from .vendor import resolve_vendor
 
 router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
 
-def _ingest_one(db: Session, vendor: str, device_id: str, raw_config: str) -> NormalizedConfig:
+async def _read_validated(file: UploadFile) -> str:
+    # ponytail: Starlette has already spooled the multipart body to a temp file by here, so this
+    # bounds memory, not disk/bandwidth. Put a proxy body-size limit (e.g. nginx) in front for that.
+    data = await file.read(config.MAX_UPLOAD_BYTES + 1)
+    return validate_and_decode(data, config.MAX_UPLOAD_BYTES)
+
+
+def _ingest_one(db: Session, vendor_hint: str | None, device_id: str, raw_config: str) -> NormalizedConfig:
+    vendor, vendor_source = resolve_vendor(vendor_hint, raw_config)
+
     # Normalize against the original text first — some L1 rules key off the secret
     # value itself (e.g. default SNMP community "public") — then redact before the
     # raw config is ever persisted (Section 6: no secrets at rest or in the UI).
     normalized = normalize_config(vendor=vendor, device_id=device_id, raw_config=raw_config)
+    normalized.vendor_source = vendor_source
 
     record = ConfigRecord(
         device_id=device_id,
@@ -24,37 +38,72 @@ def _ingest_one(db: Session, vendor: str, device_id: str, raw_config: str) -> No
         parse_confidence=normalized.parse_confidence,
     )
     db.add(record)
-    db.commit()
-    db.refresh(record)
+    db.flush()  # assigns record.id so the audit row below can reference it
+
+    log_event(
+        db,
+        "config_uploaded",
+        subject=device_id,
+        config_id=record.id,
+        details={"vendor": vendor, "vendor_source": vendor_source, "bytes": len(raw_config.encode("utf-8"))},
+    )
+    db.commit()  # config + audit row land together or not at all
 
     normalized.id = record.id
     return normalized
 
 
+def _log_rejection(db: Session, filename: str, reason: str) -> None:
+    log_event(db, "config_upload_rejected", subject=filename, details={"reason": reason})
+    db.commit()
+
+
 @router.post("/upload", response_model=NormalizedConfig)
 async def upload_config(
     file: UploadFile = File(...),
-    vendor: str = Form(...),
+    vendor: str = Form(""),  # optional manual override; blank/"auto" = identify from content
     device_id: str = Form(...),
     db: Session = Depends(get_db),
 ) -> NormalizedConfig:
-    raw_config = (await file.read()).decode("utf-8", errors="replace")
+    try:
+        raw_config = await _read_validated(file)
+    except UploadRejected as exc:
+        _log_rejection(db, file.filename or device_id, exc.message)
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
     return _ingest_one(db, vendor, device_id, raw_config)
 
 
-@router.post("/bulk", response_model=list[NormalizedConfig])
+@router.post("/bulk", response_model=list[BulkItemResult])
 async def upload_bulk(
     files: list[UploadFile] = File(...),
-    vendors: list[str] = Form(...),
     device_ids: list[str] = Form(...),
+    vendors: list[str] = Form(default=[]),  # optional; if given, one per file ("" = auto)
     db: Session = Depends(get_db),
-) -> list[NormalizedConfig]:
-    """Unified bulk ingestion (Section 8, Phase 5) — one vendor + device_id per file,
-    same order as `files`."""
-    results = []
+) -> list[BulkItemResult]:
+    """Unified bulk ingestion (Section 8, Phase 5) — one device_id (and optional vendor) per
+    file, same order as `files`. Each file succeeds or fails on its own."""
+    if len(device_ids) != len(files) or (vendors and len(vendors) != len(files)):
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one device_id (and, if vendors are given, one vendor) per file.",
+        )
+    vendors = vendors or [""] * len(files)
+
+    results: list[BulkItemResult] = []
     for file, vendor, device_id in zip(files, vendors, device_ids):
-        raw_config = (await file.read()).decode("utf-8", errors="replace")
-        results.append(_ingest_one(db, vendor, device_id, raw_config))
+        filename = file.filename or device_id
+        try:
+            raw_config = await _read_validated(file)
+            normalized = _ingest_one(db, vendor, device_id, raw_config)
+            results.append(BulkItemResult(filename=filename, device_id=device_id, status="ok", result=normalized))
+        except UploadRejected as exc:
+            _log_rejection(db, filename, exc.message)
+            results.append(BulkItemResult(filename=filename, device_id=device_id, status="error", error=exc.message))
+        except Exception as exc:  # one bad file must not sink the batch
+            db.rollback()
+            results.append(
+                BulkItemResult(filename=filename, device_id=device_id, status="error", error=f"Processing failed: {exc}")
+            )
     return results
 
 

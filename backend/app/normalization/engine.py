@@ -35,7 +35,9 @@ def normalize_config(vendor: str, device_id: str, raw_config: str) -> Normalized
         if i not in matched_line_numbers and _is_interesting(line)
     ]
 
-    parse_confidence = round(len(controls) / len(rules), 2) if rules else 0.0
+    # Meaning (see NormalizedConfig.parse_confidence): share of meaningful lines we recognized.
+    meaningful = sum(1 for line in lines if _is_interesting(line))
+    parse_confidence = round((meaningful - len(raw_unmapped_lines)) / meaningful, 2) if meaningful else 0.0
 
     return NormalizedConfig(
         device_id=device_id,

@@ -134,8 +134,8 @@ backend (`http://localhost:8000`).
 | Method | Path | Purpose |
 |---|---|---|
 | `GET`  | `/health` | Liveness check |
-| `POST` | `/ingest/upload` | Upload one config (`file`, `vendor`, `device_id` form fields) |
-| `POST` | `/ingest/bulk` | Upload a batch (`files[]`, `vendors[]`, `device_ids[]`) |
+| `POST` | `/ingest/upload` | Upload one config (`file`, `device_id`; `vendor` is an optional override) |
+| `POST` | `/ingest/bulk` | Upload a batch (`files[]`, `device_ids[]`, optional `vendors[]`) → one result per file |
 | `GET`  | `/ingest/records` | List every ingested device |
 | `GET`  | `/compliance/frameworks` | List supported frameworks (CIS, NIST, STIG, ISO) |
 | `POST` | `/compliance/evaluate` | Evaluate a config (`config_id`, `framework`) → findings + summary |
@@ -161,6 +161,40 @@ curl.exe -o report.pdf "http://localhost:8000/reporting/1/pdf?framework=CIS"
 
 Error paths return clean status codes, not crashes: an unknown framework is a `400`, a
 non-existent `config_id` is a `404`.
+
+### Upload rules (Phase 1)
+
+- **Limit:** `MAX_UPLOAD_MB` (default 10). Larger files → `413`. Binary / non-UTF-8 text → `415`. Empty → `400`.
+- **Bulk:** each file succeeds or fails on its own; the response lists `status: ok|error` per file.
+- **Vendor:** leave blank/`auto` to identify from content (only the two vendors that have parsers
+  today; otherwise `unknown`), or pass a value to override — typed names are normalized
+  (`Cisco IOS` → `cisco_ios`) and unlisted vendors are kept as typed for the training loop.
+  `vendor_source` in the response says which path was used.
+- **Audit:** every accepted upload writes a `config_uploaded` row to `audit_events`; rejected files write
+  `config_upload_rejected`.
+
+### What the confidence numbers mean
+
+- `parse_confidence` (per device, 0–1): recognized config lines ÷ meaningful lines (non-blank,
+  non-comment). 0 means nothing was understood (e.g. no parser for the vendor); it says nothing about
+  whether the device is secure.
+- `confidence` (per AI suggestion, 0–1): cosine similarity to the closest human-labeled example. It is a
+  similarity score, not a calibrated probability. At or above 0.75 a key is suggested; below, a human labels it.
+
+### Configuration (env vars)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `DATABASE_URL` | local SQLite | Database |
+| `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Allowed browser origins (`*` is refused) |
+| `MAX_UPLOAD_MB` | `10` | Per-file upload limit |
+| `HF_HUB_OFFLINE` | `1` in Docker | Never fetch models at runtime |
+
+### Offline AI
+
+The Docker image downloads `all-MiniLM-L6-v2` at build time and runs with `HF_HUB_OFFLINE=1`. For a
+non-Docker run, start the backend once with internet (this caches the model), then set `HF_HUB_OFFLINE=1`.
+If the model is missing, the API still starts and AI suggestions return `503`.
 
 ---
 

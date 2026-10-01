@@ -1,4 +1,5 @@
 import type {
+  BulkItemResult,
   ComplianceReport,
   ConfigSummary,
   NormalizedConfig,
@@ -27,7 +28,7 @@ export const api = {
 
   uploadBulk(
     items: { file: File; vendor: string; deviceId: string }[],
-  ): Promise<NormalizedConfig[]> {
+  ): Promise<BulkItemResult[]> {
     const form = new FormData();
     for (const item of items) {
       form.append("files", item.file);
@@ -84,5 +85,8 @@ export const CANONICAL_KEYS = [
   "acl_default_deny",
   "snmp_community_default",
 ] as const;
+
+// Empty vendor = let the backend identify it from the file; any other value is a manual override.
+export const AUTO_VENDOR = "";
 
 export const KNOWN_VENDORS = ["cisco_ios", "juniper_junos"] as const;

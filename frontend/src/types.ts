@@ -2,12 +2,21 @@ export interface NormalizedConfig {
   id: number;
   device_id: string;
   vendor: string;
+  vendor_source?: "manual" | "sniffed" | "undetected" | null;
   os_version?: string | null;
   serial_number?: string | null;
   parsed_at: string;
   controls: Record<string, unknown>;
   raw_unmapped_lines: string[];
   parse_confidence: number;
+}
+
+export interface BulkItemResult {
+  filename: string;
+  device_id: string;
+  status: "ok" | "error";
+  result: NormalizedConfig | null;
+  error: string | null;
 }
 
 export interface ConfigSummary {

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import CORS_ORIGINS
 from .ai_training.bootstrap import bootstrap_vector_store
 from .ai_training.routes import router as ai_training_router
 from .compliance.routes import router as compliance_router
@@ -10,11 +11,10 @@ from .reporting.routes import router as reporting_router
 
 app = FastAPI(title="ComplianceAI", version="0.1.0")
 
-# Dev/demo CORS — the dashboard is a separate Vite origin. Tighten to specific
-# origins before an air-gapped/production deployment (Section 6).
+# Allowed origins come from the CORS_ORIGINS env var (see config.py); '*' is rejected there.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

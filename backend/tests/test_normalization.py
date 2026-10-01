@@ -18,7 +18,8 @@ def test_cisco_ios_normalization():
     assert result.controls["acl_default_deny"] is True
     assert result.controls["snmp_community_default"] is True
     assert any("quantum-flux" in line for line in result.raw_unmapped_lines)
-    assert result.parse_confidence == round(8 / 9, 2)
+    # 8 of 12 meaningful lines recognized (see NormalizedConfig.parse_confidence)
+    assert result.parse_confidence == round(8 / 12, 2)
 
 
 def test_juniper_junos_normalization():
