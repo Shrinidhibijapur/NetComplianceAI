@@ -66,6 +66,32 @@ def _extract_identity(profile, raw_config: str) -> dict[str, str]:
 # Control extraction with parent-block awareness
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _resolve_match_value(cp, m: re.Match) -> Any:
+    if cp.value is not None:
+        return cp.value
+    if cp.group is not None:
+        try:
+            return m.group(cp.group)
+        except IndexError:
+            return True
+    return True
+
+
+def _match_single_pattern(cp, lines: list[str], raw_config: str) -> tuple[int, str, Any] | None:
+    for m in cp.pattern.finditer(raw_config):
+        line_no = raw_config.count("\n", 0, m.start())
+        line_text = lines[line_no] if line_no < len(lines) else ""
+
+        if cp.parent_pattern is not None:
+            parent_line = _current_parent(lines, line_no)
+            if not cp.parent_pattern.search(parent_line):
+                continue
+
+        value = _resolve_match_value(cp, m)
+        return line_no, line_text, value
+    return None
+
+
 def _extract_controls(
     profile,
     lines: list[str],
@@ -84,38 +110,16 @@ def _extract_controls(
     for mapping in profile.controls:
         ck = mapping.control_key
         if ck in controls:
-            continue  # first match per key wins
+            continue
 
         for cp in mapping.patterns:
-            # Search for the pattern across the whole config text first (fast).
-            for m in cp.pattern.finditer(raw_config):
-                line_no = raw_config.count("\n", 0, m.start())
-                line_text = lines[line_no] if line_no < len(lines) else ""
-
-                # Parent-block check (if required by this pattern).
-                if cp.parent_pattern is not None:
-                    parent_line = _current_parent(lines, line_no)
-                    if not cp.parent_pattern.search(parent_line):
-                        continue  # matched text but wrong context
-
-                # Resolve value.
-                if cp.value is not None:
-                    value = cp.value
-                elif cp.group is not None:
-                    try:
-                        value = m.group(cp.group)
-                    except IndexError:
-                        value = True
-                else:
-                    value = True
-
+            res = _match_single_pattern(cp, lines, raw_config)
+            if res is not None:
+                line_no, line_text, value = res
                 controls[ck] = value
                 matched.add(line_no)
                 evidence[ck] = {"line_no": line_no + 1, "line_text": line_text.strip()}
-                break  # stop searching for this pattern variant
-
-            if ck in controls:
-                break  # stop trying further patterns for this control_key
+                break
 
     return controls, matched, evidence
 

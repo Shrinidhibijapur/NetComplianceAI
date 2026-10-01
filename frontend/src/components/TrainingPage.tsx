@@ -60,8 +60,9 @@ export function TrainingPage({
 
       <div className="card">
         <div className="field" style={{ maxWidth: 320 }}>
-          <label>Device</label>
+          <label htmlFor="select-device">Device</label>
           <select
+            id="select-device"
             value={deviceId ?? ""}
             onChange={(e) => setDeviceId(e.target.value ? Number(e.target.value) : null)}
           >
@@ -122,13 +123,14 @@ function TrainingRow({
           <label>Maps to control — click to pick</label>
           <div className="chip-row">
             {CANONICAL_KEYS.map((k) => (
-              <span
+              <button
+                type="button"
                 key={k}
                 className={`chip${choice === k ? " selected" : ""}`}
                 onClick={() => setChoice(k)}
               >
                 {k}
-              </span>
+              </button>
             ))}
           </div>
         </div>

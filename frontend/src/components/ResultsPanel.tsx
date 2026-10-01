@@ -31,8 +31,9 @@ export function ResultsPanel({ record, onTrain }: { record: ConfigSummary; onTra
     <div className="card" style={{ background: "var(--surface-raised)" }}>
       <div className="toolbar">
         <div className="field" style={{ maxWidth: 200 }}>
-          <label>Framework</label>
+          <label htmlFor={`fw-select-${record.id}`}>Framework</label>
           <select
+            id={`fw-select-${record.id}`}
             value={framework}
             onChange={(e) => {
               setFramework(e.target.value);

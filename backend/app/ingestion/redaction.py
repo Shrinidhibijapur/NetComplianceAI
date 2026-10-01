@@ -6,12 +6,12 @@ import re
 # (e.g. "snmp-server community public") not the secret value, so redaction is
 # safe to run unconditionally, ahead of storage.
 _SECRET_PATTERNS = [
-    re.compile(r"(username\s+\S+\s+(?:password|secret)\s+\d?\s*)(\S+)", re.I),
-    re.compile(r"((?:enable\s+)?(?:password|secret)\s+\d?\s*)(\S+)", re.I),
-    re.compile(r"(snmp-server community\s+)(\S+)", re.I),
-    re.compile(r"(set snmp community\s+)(\S+)", re.I),
-    re.compile(r"(pre-shared-key\s+\S*\s*)(\S+)", re.I),
-    re.compile(r"((?:wpa-psk|authentication-key)\s+)(\S+)", re.I),
+    re.compile(r"(\busername[ \t]+[^\s]+[ \t]+(?:password|secret)(?:[ \t]+\d)?[ \t]+)(\S+)", re.I),
+    re.compile(r"(\b(?:enable[ \t]+)?(?:password|secret)(?:[ \t]+\d)?[ \t]+)(\S+)", re.I),
+    re.compile(r"(\bsnmp-server[ \t]+community[ \t]+)(\S+)", re.I),
+    re.compile(r"(\bset[ \t]+snmp[ \t]+community[ \t]+)(\S+)", re.I),
+    re.compile(r"(\bpre-shared-key(?:[ \t]+[^\s]+)?[ \t]+)(\S+)", re.I),
+    re.compile(r"(\b(?:wpa-psk|authentication-key)[ \t]+)(\S+)", re.I),
 ]
 
 

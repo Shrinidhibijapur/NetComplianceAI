@@ -121,20 +121,7 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
       </div>
 
       {!file && items.length === 0 && (
-        <div className="card">
-          <h3>No configs on hand? Try the bundled samples</h3>
-          <p className="card-sub">
-            Synthetic, safe sample configs — one hardened, one that needs work, and one from an
-            unrecognized "whitebox" vendor to demo the AI training loop.
-          </p>
-          <div className="chip-row">
-            {SAMPLE_CONFIGS.map((s, i) => (
-              <span key={s.filename} className="chip" onClick={() => loadSample(i)}>
-                {s.label}
-              </span>
-            ))}
-          </div>
-        </div>
+        <SampleSection loadSample={loadSample} />
       )}
 
       <div className="subtabs">
@@ -149,160 +136,260 @@ export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
       {error && <div className="error-banner">{error}</div>}
 
       {mode === "single" ? (
-        <div className="card">
-          <h3>Device config</h3>
-          <label
-            className={`dropzone${dragging ? " dragover" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-            }}
-          >
-            {file ? (
-              <span>
-                <strong>{file.name}</strong> selected — click to change
-              </span>
-            ) : (
-              <span>Drag a config file here, or click to browse</span>
-            )}
-            <input
-              type="file"
-              hidden
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-
-          <div className="row" style={{ marginTop: "var(--space-4)" }}>
-            <div className="field">
-              <label>Device ID</label>
-              <input
-                value={deviceId}
-                onChange={(e) => setDeviceId(e.target.value)}
-                placeholder="e.g. core-sw-01"
-              />
-            </div>
-            <div className="field">
-              <label>Vendor — optional override</label>
-              <div className="chip-row">
-                <span
-                  className={`chip${vendor === AUTO_VENDOR ? " selected" : ""}`}
-                  onClick={() => setVendor(AUTO_VENDOR)}
-                >
-                  Auto-detect
-                </span>
-                {KNOWN_VENDORS.map((v) => (
-                  <span
-                    key={v}
-                    className={`chip${vendor === v ? " selected" : ""}`}
-                    onClick={() => setVendor(v)}
-                  >
-                    {v}
-                  </span>
-                ))}
-                <span
-                  className={`chip chip-input${vendor === "__other__" ? " filled" : ""}`}
-                  onClick={() => setVendor("__other__")}
-                >
-                  {vendor === "__other__" ? (
-                    <input
-                      autoFocus
-                      value={customVendor}
-                      placeholder="unknown vendor…"
-                      onChange={(e) => setCustomVendor(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    "Other / unknown…"
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <button
-            className="btn btn-primary"
-            style={{ marginTop: "var(--space-4)" }}
-            disabled={busy}
-            onClick={submitSingle}
-          >
-            {busy ? <span className="spinner" /> : "Ingest config"}
-          </button>
-        </div>
+        <SingleUploadCard
+          file={file}
+          setFile={setFile}
+          deviceId={deviceId}
+          setDeviceId={setDeviceId}
+          vendor={vendor}
+          setVendor={setVendor}
+          customVendor={customVendor}
+          setCustomVendor={setCustomVendor}
+          dragging={dragging}
+          setDragging={setDragging}
+          busy={busy}
+          submitSingle={submitSingle}
+        />
       ) : (
-        <div className="card">
-          <h3>Bulk batch</h3>
-          <label
-            className={`dropzone${dragging ? " dragover" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragging(false);
-              addBulkFiles(e.dataTransfer.files);
-            }}
-          >
-            <span>Drag multiple config files here, or click to browse</span>
-            <input type="file" multiple hidden onChange={(e) => addBulkFiles(e.target.files)} />
-          </label>
+        <BulkUploadCard
+          items={items}
+          setItems={setItems}
+          addBulkFiles={addBulkFiles}
+          dragging={dragging}
+          setDragging={setDragging}
+          busy={busy}
+          submitBulk={submitBulk}
+        />
+      )}
+    </div>
+  );
+}
 
-          {items.length > 0 && (
-            <div className="file-list">
-              {items.map((item, idx) => (
-                <div className="file-item" key={idx}>
-                  <span className="name">{item.file.name}</span>
-                  <input
-                    className="device-id"
-                    value={item.deviceId}
-                    onChange={(e) =>
-                      setItems((prev) =>
-                        prev.map((it, i) => (i === idx ? { ...it, deviceId: e.target.value } : it)),
-                      )
-                    }
-                  />
-                  <select
-                    value={item.vendor}
-                    onChange={(e) =>
-                      setItems((prev) =>
-                        prev.map((it, i) => (i === idx ? { ...it, vendor: e.target.value } : it)),
-                      )
-                    }
-                  >
-                    <option value={AUTO_VENDOR}>auto-detect</option>
-                    {KNOWN_VENDORS.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                    <option value="unknown_vendor">unknown_vendor</option>
-                  </select>
-                  <button
-                    className="icon-btn danger"
-                    title="Remove"
-                    onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+function SampleSection({ loadSample }: { loadSample: (index: number) => void }) {
+  return (
+    <div className="card">
+      <h3>No configs on hand? Try the bundled samples</h3>
+      <p className="card-sub">
+        Synthetic, safe sample configs — one hardened, one that needs work, and one from an
+        unrecognized "whitebox" vendor to demo the AI training loop.
+      </p>
+      <div className="chip-row">
+        {SAMPLE_CONFIGS.map((s, i) => (
+          <button type="button" key={s.filename} className="chip" onClick={() => loadSample(i)}>
+            {s.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-          <div style={{ marginTop: "var(--space-4)" }}>
-            <button className="btn btn-primary" disabled={busy} onClick={submitBulk}>
-              {busy ? <span className="spinner" /> : `Ingest ${items.length || ""} device(s)`}
+function SingleUploadCard({
+  file,
+  setFile,
+  deviceId,
+  setDeviceId,
+  vendor,
+  setVendor,
+  customVendor,
+  setCustomVendor,
+  dragging,
+  setDragging,
+  busy,
+  submitSingle,
+}: {
+  file: File | null;
+  setFile: (f: File | null) => void;
+  deviceId: string;
+  setDeviceId: (id: string) => void;
+  vendor: string;
+  setVendor: (v: string) => void;
+  customVendor: string;
+  setCustomVendor: (cv: string) => void;
+  dragging: boolean;
+  setDragging: (d: boolean) => void;
+  busy: boolean;
+  submitSingle: () => void;
+}) {
+  return (
+    <div className="card">
+      <h3>Device config</h3>
+      <label
+        className={`dropzone${dragging ? " dragover" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+        }}
+      >
+        {file ? (
+          <span>
+            <strong>{file.name}</strong> selected — click to change
+          </span>
+        ) : (
+          <span>Drag a config file here, or click to browse</span>
+        )}
+        <input
+          type="file"
+          hidden
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+      </label>
+
+      <div className="row" style={{ marginTop: "var(--space-4)" }}>
+        <div className="field">
+          <label htmlFor="upload-device-id">Device ID</label>
+          <input
+            id="upload-device-id"
+            value={deviceId}
+            onChange={(e) => setDeviceId(e.target.value)}
+            placeholder="e.g. core-sw-01"
+          />
+        </div>
+        <div className="field">
+          <label>Vendor — optional override</label>
+          <div className="chip-row">
+            <button
+              type="button"
+              className={`chip${vendor === AUTO_VENDOR ? " selected" : ""}`}
+              onClick={() => setVendor(AUTO_VENDOR)}
+            >
+              Auto-detect
+            </button>
+            {KNOWN_VENDORS.map((v) => (
+              <button
+                type="button"
+                key={v}
+                className={`chip${vendor === v ? " selected" : ""}`}
+                onClick={() => setVendor(v)}
+              >
+                {v}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`chip chip-input${vendor === "__other__" ? " filled" : ""}`}
+              onClick={() => setVendor("__other__")}
+            >
+              {vendor === "__other__" ? (
+                <input
+                  value={customVendor}
+                  aria-label="Unknown vendor name"
+                  placeholder="unknown vendor…"
+                  onChange={(e) => setCustomVendor(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                "Other / unknown…"
+              )}
             </button>
           </div>
         </div>
+      </div>
+
+      <button
+        className="btn btn-primary"
+        style={{ marginTop: "var(--space-4)" }}
+        disabled={busy}
+        onClick={submitSingle}
+      >
+        {busy ? <span className="spinner" /> : "Ingest config"}
+      </button>
+    </div>
+  );
+}
+
+function BulkUploadCard({
+  items,
+  setItems,
+  addBulkFiles,
+  dragging,
+  setDragging,
+  busy,
+  submitBulk,
+}: {
+  items: BulkItem[];
+  setItems: React.Dispatch<React.SetStateAction<BulkItem[]>>;
+  addBulkFiles: (files: FileList | null) => void;
+  dragging: boolean;
+  setDragging: (d: boolean) => void;
+  busy: boolean;
+  submitBulk: () => void;
+}) {
+  return (
+    <div className="card">
+      <h3>Bulk batch</h3>
+      <label
+        className={`dropzone${dragging ? " dragover" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          addBulkFiles(e.dataTransfer.files);
+        }}
+      >
+        <span>Drag multiple config files here, or click to browse</span>
+        <input type="file" multiple hidden onChange={(e) => addBulkFiles(e.target.files)} />
+      </label>
+
+      {items.length > 0 && (
+        <div className="file-list">
+          {items.map((item, idx) => (
+            <div className="file-item" key={idx}>
+              <span className="name">{item.file.name}</span>
+              <input
+                className="device-id"
+                aria-label={`Device ID for ${item.file.name}`}
+                value={item.deviceId}
+                onChange={(e) =>
+                  setItems((prev) =>
+                    prev.map((it, i) => (i === idx ? { ...it, deviceId: e.target.value } : it)),
+                  )
+                }
+              />
+              <select
+                aria-label={`Vendor for ${item.file.name}`}
+                value={item.vendor}
+                onChange={(e) =>
+                  setItems((prev) =>
+                    prev.map((it, i) => (i === idx ? { ...it, vendor: e.target.value } : it)),
+                  )
+                }
+              >
+                <option value={AUTO_VENDOR}>auto-detect</option>
+                {KNOWN_VENDORS.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+                <option value="unknown_vendor">unknown_vendor</option>
+              </select>
+              <button
+                className="icon-btn danger"
+                title="Remove"
+                onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       )}
+
+      <div style={{ marginTop: "var(--space-4)" }}>
+        <button className="btn btn-primary" disabled={busy} onClick={submitBulk}>
+          {busy ? <span className="spinner" /> : `Ingest ${items.length || ""} device(s)`}
+        </button>
+      </div>
     </div>
   );
 }

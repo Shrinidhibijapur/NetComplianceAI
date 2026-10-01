@@ -51,6 +51,8 @@ export function DevicesPage({
         <>
           <div className="search-bar">
             <input
+              id="search-devices"
+              aria-label="Search by device ID or vendor"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search by device ID or vendor…"
@@ -66,8 +68,16 @@ export function DevicesPage({
               return (
                 <div
                   key={r.id}
+                  role="button"
+                  tabIndex={0}
                   className={`device-card${isOpen ? " expanded" : ""}`}
                   onClick={() => !isOpen && setExpanded(r.id)}
+                  onKeyDown={(e) => {
+                    if ((e.key === "Enter" || e.key === " ") && !isOpen) {
+                      e.preventDefault();
+                      setExpanded(r.id);
+                    }
+                  }}
                 >
                   <div className="device-card-head">
                     <div>

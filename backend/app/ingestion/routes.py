@@ -58,7 +58,15 @@ def _log_rejection(db: Session, filename: str, reason: str) -> None:
     db.commit()
 
 
-@router.post("/upload", response_model=NormalizedConfig)
+@router.post(
+    "/upload",
+    response_model=NormalizedConfig,
+    responses={
+        400: {"description": "Invalid upload file or request parameter"},
+        413: {"description": "File size exceeds upload limit"},
+        415: {"description": "Unsupported media type or non-UTF8 content"},
+    },
+)
 async def upload_config(
     file: UploadFile = File(...),
     vendor: str = Form(""),  # optional manual override; blank/"auto" = identify from content
@@ -73,7 +81,13 @@ async def upload_config(
     return _ingest_one(db, vendor, device_id, raw_config)
 
 
-@router.post("/bulk", response_model=list[BulkItemResult])
+@router.post(
+    "/bulk",
+    response_model=list[BulkItemResult],
+    responses={
+        400: {"description": "Mismatched parameters (files vs device_ids or vendors)"},
+    },
+)
 async def upload_bulk(
     files: list[UploadFile] = File(...),
     device_ids: list[str] = Form(...),

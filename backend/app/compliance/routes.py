@@ -22,7 +22,14 @@ class EvaluateRequest(BaseModel):
     framework: str = "CIS"
 
 
-@router.post("/evaluate", response_model=ComplianceReport)
+@router.post(
+    "/evaluate",
+    response_model=ComplianceReport,
+    responses={
+        400: {"description": "Unknown framework error"},
+        404: {"description": "Config record not found"},
+    },
+)
 def evaluate(payload: EvaluateRequest, db: Session = Depends(get_db)) -> ComplianceReport:
     record = db.get(ConfigRecord, payload.config_id)
     if record is None:

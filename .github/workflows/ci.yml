@@ -21,8 +21,8 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: hf-all-MiniLM-L6-v2
-      - run: pip install torch --index-url https://download.pytorch.org/whl/cpu
-      - run: pip install -r requirements.txt
+      - run: pip install --only-binary :all: torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install --only-binary :all: -r requirements.txt
       - run: pytest -q
 
   frontend:

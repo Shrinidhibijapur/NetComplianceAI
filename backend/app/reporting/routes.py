@@ -11,7 +11,13 @@ from .engine import render_report_html, render_report_pdf, render_report_pdf_fal
 router = APIRouter(prefix="/reporting", tags=["reporting"])
 
 
-@router.get("/{config_id}/pdf")
+@router.get(
+    "/{config_id}/pdf",
+    responses={
+        400: {"description": "Unknown framework error"},
+        404: {"description": "Config record not found"},
+    },
+)
 def download_report_pdf(config_id: int, framework: str = "CIS", db: Session = Depends(get_db)) -> Response:
     record = db.get(ConfigRecord, config_id)
     if record is None:

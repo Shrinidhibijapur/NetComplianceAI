@@ -5,12 +5,16 @@ export function Toaster() {
   const [toasts, setToasts] = useState<ToastPayload[]>([]);
 
   useEffect(() => {
-    return onToast((payload) => {
+    const removeToast = (id: number) => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    };
+
+    const handleToast = (payload: ToastPayload) => {
       setToasts((prev) => [...prev, payload]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== payload.id));
-      }, 4200);
-    });
+      setTimeout(() => removeToast(payload.id), 4200);
+    };
+
+    return onToast(handleToast);
   }, []);
 
   if (toasts.length === 0) return null;

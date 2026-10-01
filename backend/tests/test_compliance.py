@@ -34,7 +34,8 @@ def test_evaluate_hardened_cisco_device_passes_everything_it_can_see():
 
     failed = next(f for f in findings if f.status == "fail")
     assert failed.canonical_key == "snmp_community_default"
-    assert failed.remediation is not None and "snmp-server community" in failed.remediation
+    assert failed.remediation is not None
+    assert "snmp-server community" in failed.remediation
 
 
 def test_evaluate_missing_control_is_unknown_not_fail():

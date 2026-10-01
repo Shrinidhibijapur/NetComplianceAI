@@ -108,7 +108,8 @@ def test_bulk_one_corrupt_file_does_not_fail_batch():
     out = resp.json()
     assert [r["status"] for r in out] == ["ok", "error", "ok"]
     assert out[0]["result"]["vendor"] == "cisco_ios"
-    assert out[1]["result"] is None and "binary" in out[1]["error"]
+    assert out[1]["result"] is None
+    assert "binary" in out[1]["error"]
     assert out[2]["result"]["vendor"] == "juniper_junos"
 
 
@@ -118,7 +119,8 @@ def test_bulk_vendors_optional():
         files=[("files", ("a.cfg", CISCO, "text/plain"))],
         data={"device_ids": ["a"]},
     )
-    assert resp.status_code == 200 and resp.json()[0]["status"] == "ok"
+    assert resp.status_code == 200
+    assert resp.json()[0]["status"] == "ok"
 
 
 def test_bulk_mismatched_lengths_is_400():
@@ -146,10 +148,50 @@ def test_audit_row_links_to_config_record():
     db = SessionLocal()
     try:
         ev = db.query(AuditEvent).filter(AuditEvent.config_id == cid).one()
-        assert ev.event_type == "config_uploaded" and ev.subject == "audit-link"
+        assert ev.event_type == "config_uploaded"
+        assert ev.subject == "audit-link"
         assert ev.details["vendor"] == "cisco_ios"
     finally:
         db.close()
+
+
+# --- redaction --------------------------------------------------------------
+
+def test_redact_secrets_all_patterns():
+    from app.ingestion.redaction import redact_secrets
+
+    raw = (
+        "username admin secret 5 $1$mERr$hx5rD7\n"
+        "username operator password 7 0822455D0A16\n"
+        "enable secret 5 $1$mERr$hx5rD7\n"
+        "enable password 7 0822455D0A16\n"
+        "snmp-server community public\n"
+        "set snmp community private\n"
+        "pre-shared-key ascii SecretKey123\n"
+        "wpa-psk SecretWpaKey\n"
+        "authentication-key SecretAuthKey\n"
+    )
+    redacted = redact_secrets(raw)
+    assert "$1$mERr$hx5rD7" not in redacted
+    assert "0822455D0A16" not in redacted
+    assert "public" not in redacted
+    assert "private" not in redacted
+    assert "SecretKey123" not in redacted
+    assert "SecretWpaKey" not in redacted
+    assert "SecretAuthKey" not in redacted
+    assert "[REDACTED]" in redacted
+
+
+def test_redact_secrets_adversarial_long_input():
+    import time
+    from app.ingestion.redaction import redact_secrets
+
+    adversarial_str = "username " + ("a" * 10000) + " password " + ("b" * 10000) + "\n"
+    start = time.perf_counter()
+    redacted = redact_secrets(adversarial_str)
+    duration = time.perf_counter() - start
+    assert duration < 0.5
+    assert "[REDACTED]" in redacted
 
 
 # --- D10: confidence meaning ------------------------------------------------

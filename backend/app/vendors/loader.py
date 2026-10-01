@@ -72,6 +72,59 @@ def _compile(pattern: str, field_name: str) -> re.Pattern:
         raise ProfileValidationError(f"Invalid regex in {field_name!r}: {pattern!r} — {exc}") from exc
 
 
+def _parse_fingerprints(path_name: str, vendor: str, raw_fp: Any) -> list[re.Pattern]:
+    if not isinstance(raw_fp, list) or not raw_fp:
+        raise ProfileValidationError(f"{path_name}: 'fingerprints' must be a non-empty list")
+    return [_compile(fp, f"{vendor}.fingerprints") for fp in raw_fp]
+
+
+def _parse_identity(path_name: str, vendor: str, raw_id: Any) -> dict[str, IdentityExtractor]:
+    identity: dict[str, IdentityExtractor] = {}
+    for key, spec in (raw_id or {}).items():
+        if not isinstance(spec, dict) or "pattern" not in spec:
+            raise ProfileValidationError(f"{path_name}: identity.{key} must have 'pattern'")
+        identity[key] = IdentityExtractor(
+            pattern=_compile(spec["pattern"], f"{vendor}.identity.{key}"),
+            group=int(spec.get("group", 1)),
+        )
+    return identity
+
+
+def _parse_control_pattern(path_name: str, vendor: str, ck: str, p: Any) -> ControlPattern:
+    if not isinstance(p, dict) or "pattern" not in p:
+        raise ProfileValidationError(f"{path_name}: {ck} pattern entry missing 'pattern'")
+    vt = p.get("value_type", "bool")
+    parent_pat = None
+    if "parent_pattern" in p:
+        parent_pat = _compile(p["parent_pattern"], f"{vendor}.{ck}.parent_pattern")
+    return ControlPattern(
+        pattern=_compile(p["pattern"], f"{vendor}.{ck}"),
+        value_type=vt,
+        value=p.get("value"),
+        group=p.get("group"),
+        parent_pattern=parent_pat,
+    )
+
+
+def _parse_controls(path_name: str, vendor: str, raw_controls: Any) -> list[ControlMapping]:
+    if not isinstance(raw_controls, list):
+        raise ProfileValidationError(f"{path_name}: 'controls' must be a list")
+    controls: list[ControlMapping] = []
+    for entry in raw_controls:
+        if not isinstance(entry, dict):
+            raise ProfileValidationError(f"{path_name}: control entry must be a dict")
+        ck = entry.get("control_key")
+        if not ck:
+            raise ProfileValidationError(f"{path_name}: control entry missing 'control_key'")
+        patterns_raw = entry.get("patterns")
+        if not isinstance(patterns_raw, list) or not patterns_raw:
+            raise ProfileValidationError(f"{path_name}: {ck}.patterns must be a non-empty list")
+
+        cpatterns = [_parse_control_pattern(path_name, vendor, ck, p) for p in patterns_raw]
+        controls.append(ControlMapping(control_key=ck, patterns=cpatterns))
+    return controls
+
+
 def _load_one(path: Path) -> VendorProfile:
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
@@ -90,48 +143,9 @@ def _load_one(path: Path) -> VendorProfile:
     display_name = raw.get("display_name", vendor)
     config_style = raw.get("config_style", "indented_block")
 
-    # Fingerprints
-    fp_raw = _require("fingerprints")
-    if not isinstance(fp_raw, list) or not fp_raw:
-        raise ProfileValidationError(f"{path.name}: 'fingerprints' must be a non-empty list")
-    fingerprints = [_compile(fp, f"{vendor}.fingerprints") for fp in fp_raw]
-
-    # Identity extractors
-    identity: dict[str, IdentityExtractor] = {}
-    for key, spec in (raw.get("identity") or {}).items():
-        if not isinstance(spec, dict) or "pattern" not in spec:
-            raise ProfileValidationError(f"{path.name}: identity.{key} must have 'pattern'")
-        identity[key] = IdentityExtractor(
-            pattern=_compile(spec["pattern"], f"{vendor}.identity.{key}"),
-            group=int(spec.get("group", 1)),
-        )
-
-    # Control mappings
-    controls: list[ControlMapping] = []
-    for entry in _require("controls"):
-        ck = entry.get("control_key")
-        if not ck:
-            raise ProfileValidationError(f"{path.name}: control entry missing 'control_key'")
-        patterns_raw = entry.get("patterns")
-        if not isinstance(patterns_raw, list) or not patterns_raw:
-            raise ProfileValidationError(f"{path.name}: {ck}.patterns must be a non-empty list")
-
-        cpatterns = []
-        for p in patterns_raw:
-            if "pattern" not in p:
-                raise ProfileValidationError(f"{path.name}: {ck} pattern entry missing 'pattern'")
-            vt = p.get("value_type", "bool")
-            parent_pat = None
-            if "parent_pattern" in p:
-                parent_pat = _compile(p["parent_pattern"], f"{vendor}.{ck}.parent_pattern")
-            cpatterns.append(ControlPattern(
-                pattern=_compile(p["pattern"], f"{vendor}.{ck}"),
-                value_type=vt,
-                value=p.get("value"),
-                group=p.get("group"),
-                parent_pattern=parent_pat,
-            ))
-        controls.append(ControlMapping(control_key=ck, patterns=cpatterns))
+    fingerprints = _parse_fingerprints(path.name, vendor, _require("fingerprints"))
+    identity = _parse_identity(path.name, vendor, raw.get("identity"))
+    controls = _parse_controls(path.name, vendor, _require("controls"))
 
     return VendorProfile(
         vendor=vendor,

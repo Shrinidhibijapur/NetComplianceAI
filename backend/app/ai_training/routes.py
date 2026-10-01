@@ -11,7 +11,14 @@ from .store import TrainingExample
 router = APIRouter(prefix="/ai-training", tags=["ai-training"])
 
 
-@router.get("/pending/{config_id}", response_model=PendingTrainingResponse)
+@router.get(
+    "/pending/{config_id}",
+    response_model=PendingTrainingResponse,
+    responses={
+        404: {"description": "Config record not found"},
+        503: {"description": "Embedding model unavailable"},
+    },
+)
 def pending_lines(config_id: int, db: Session = Depends(get_db)) -> PendingTrainingResponse:
     record = db.get(ConfigRecord, config_id)
     if record is None:

@@ -51,13 +51,13 @@ function App() {
   return (
     <div className="shell shell-console">
       <aside className="sidebar">
-        <div className="sidebar-brand" onClick={() => setEntered(false)}>
+        <button type="button" className="sidebar-brand" onClick={() => setEntered(false)}>
           <div className="brand-mark">CA</div>
           <div className="brand-text">
             <strong>ComplianceAI</strong>
             <span>Compliance Auditor</span>
           </div>
-        </div>
+        </button>
         <nav className="sidebar-nav">
           <button className={tab === "upload" ? "active" : ""} onClick={() => setTab("upload")}>
             <span className="sidebar-icon">⇪</span>Upload
