@@ -165,7 +165,7 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
   );
 }
 
-function SampleSection({ loadSample }: { loadSample: (index: number) => void }) {
+function SampleSection({ loadSample }: { readonly loadSample: (index: number) => void }) {
   return (
     <div className="card">
       <h3>No configs on hand? Try the bundled samples</h3>
