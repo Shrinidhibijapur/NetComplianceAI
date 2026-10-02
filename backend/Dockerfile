@@ -15,13 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && chown -R appuser:appuser /app /opt/hf
 
 WORKDIR /app
-COPY --chown=appuser:appuser requirements.txt .
+COPY --chown=appuser:appuser requirements.lock requirements.txt ./
 
-# CPU-only torch first and locked resolved dependencies
+# Locked resolved dependencies installation (satisfies Sonar docker:S8544)
 RUN pip install --no-cache-dir --only-binary :all: \
-    torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir --only-binary :all: --no-deps \
-    -r requirements.txt
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple \
+    -r requirements.lock
 
 # Bake embedding model into image so container never needs network at runtime.
 ENV HF_HOME=/opt/hf
@@ -31,6 +31,7 @@ SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
 ENV HF_HUB_OFFLINE=1
 
 COPY --chown=appuser:appuser app ./app
+RUN chown -R appuser:appuser /app
 
 USER appuser
 
