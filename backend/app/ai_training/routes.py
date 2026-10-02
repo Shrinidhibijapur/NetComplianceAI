@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -13,13 +15,14 @@ router = APIRouter(prefix="/ai-training", tags=["ai-training"])
 
 @router.get(
     "/pending/{config_id}",
-    response_model=PendingTrainingResponse,
     responses={
         404: {"description": "Config record not found"},
         503: {"description": "Embedding model unavailable"},
     },
 )
-def pending_lines(config_id: int, db: Session = Depends(get_db)) -> PendingTrainingResponse:
+def pending_lines(
+    config_id: int, db: Annotated[Session, Depends(get_db)]
+) -> PendingTrainingResponse:
     record = db.get(ConfigRecord, config_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"No config record with id {config_id}")
@@ -36,7 +39,9 @@ def pending_lines(config_id: int, db: Session = Depends(get_db)) -> PendingTrain
 
 
 @router.post("/label")
-def label_line(payload: LabelRequest, db: Session = Depends(get_db)) -> dict:
+def label_line(
+    payload: LabelRequest, db: Annotated[Session, Depends(get_db)]
+) -> dict:
     """The admin confirms what a previously-unrecognized line means (Section 4.2 step 4).
     No retraining/redeploy: the example is added to the vector store immediately."""
     row = TrainingExampleRow(

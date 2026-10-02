@@ -1,6 +1,6 @@
 import type { FindingStatus, Severity } from "../types";
 
-export function StatusBadge({ status }: { status: FindingStatus }) {
+export function StatusBadge({ status }: { readonly status: FindingStatus }) {
   return (
     <span className={`badge badge-${status}`}>
       <span className="badge-dot" />
@@ -9,7 +9,7 @@ export function StatusBadge({ status }: { status: FindingStatus }) {
   );
 }
 
-export function SeverityBadge({ severity }: { severity: Severity }) {
+export function SeverityBadge({ severity }: { readonly severity: Severity }) {
   return (
     <span className={`badge badge-${severity}`}>
       <span className="badge-dot" />
@@ -18,7 +18,7 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
   );
 }
 
-export function ConfidenceMeter({ value }: { value: number }) {
+export function ConfidenceMeter({ value }: { readonly value: number }) {
   const pct = Math.round(value * 100);
   return (
     <div className="confidence-bar">

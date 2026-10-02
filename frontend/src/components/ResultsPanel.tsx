@@ -3,7 +3,7 @@ import { api } from "../api";
 import type { ComplianceReport, ConfigSummary } from "../types";
 import { SeverityBadge, StatusBadge } from "./Badges";
 
-export function ResultsPanel({ record, onTrain }: { record: ConfigSummary; onTrain: () => void }) {
+export function ResultsPanel({ record, onTrain }: { readonly record: ConfigSummary; readonly onTrain: () => void }) {
   const [frameworks, setFrameworks] = useState<string[]>([]);
   const [framework, setFramework] = useState("CIS");
   const [report, setReport] = useState<ComplianceReport | null>(null);
@@ -77,7 +77,12 @@ export function ResultsPanel({ record, onTrain }: { record: ConfigSummary; onTra
               const fail = report.summary.fail ?? 0;
               const total = pass + fail;
               const pct = total ? Math.round((pass / total) * 100) : 0;
-              const color = pct >= 80 ? "var(--ok)" : pct >= 50 ? "var(--warn)" : "var(--danger)";
+              let color = "var(--danger)";
+              if (pct >= 80) {
+                color = "var(--ok)";
+              } else if (pct >= 50) {
+                color = "var(--warn)";
+              }
               return (
                 <div className="score-gauge" style={{ "--pct": pct, "--gauge-color": color } as CSSProperties}>
                   <div className="score-gauge-inner">

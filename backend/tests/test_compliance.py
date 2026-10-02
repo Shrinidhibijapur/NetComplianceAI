@@ -277,11 +277,14 @@ def test_stig_rule_id_and_source_validation():
         assert r.control_id.startswith("STIG-V-"), f"Invalid STIG control_id format: {r.control_id}"
         
         # Verify authoritative source reference and URL
-        assert r.source and "DISA" in r.source, f"STIG rule {r.control_id} missing DISA source"
-        assert r.source_url and r.source_url.startswith("https://public.cyber.mil/stigs/"), f"STIG rule {r.control_id} invalid source_url"
+        assert r.source is not None, f"STIG rule {r.control_id} missing source"
+        assert "DISA" in r.source, f"STIG rule {r.control_id} missing DISA source"
+        assert r.source_url is not None, f"STIG rule {r.control_id} missing source_url"
+        assert r.source_url.startswith("https://public.cyber.mil/stigs/"), f"STIG rule {r.control_id} invalid source_url"
 
         # Verify real Vuln / SV / Rule ID present in framework_reference
-        assert "V-2" in r.framework_reference or "SV-" in r.framework_reference, f"STIG rule {r.control_id} missing real DISA Vuln/SV ID in reference"
+        has_real_ref = "V-2" in r.framework_reference or "SV-" in r.framework_reference
+        assert has_real_ref, f"STIG rule {r.control_id} missing real DISA Vuln/SV ID in reference"
 
 
 def test_source_verification_not_blindly_true():

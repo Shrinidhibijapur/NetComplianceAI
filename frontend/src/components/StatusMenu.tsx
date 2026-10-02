@@ -6,8 +6,8 @@ export function StatusMenu({
   onRefresh,
   onExit,
 }: {
-  onRefresh: () => void;
-  onExit: () => void;
+  readonly onRefresh: () => void;
+  readonly onExit: () => void;
 }) {
   const [online, setOnline] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
@@ -38,13 +38,27 @@ export function StatusMenu({
     return () => window.removeEventListener("mousedown", onClick);
   }, [open]);
 
+  let statusClass = "";
+  if (online === true) {
+    statusClass = "status-online";
+  } else if (online === false) {
+    statusClass = "status-offline";
+  }
+
+  let statusText = "Checking…";
+  if (online === true) {
+    statusText = "Engine online";
+  } else if (online === false) {
+    statusText = "Engine offline";
+  }
+
   return (
     <div className="status-menu" ref={menuRef}>
-      <span className={`status-pill ${online ? "status-online" : online === false ? "status-offline" : ""}`}>
+      <span className={`status-pill ${statusClass}`}>
         <span className="status-dot" />
-        {online === null ? "Checking…" : online ? "Engine online" : "Engine offline"}
+        {statusText}
       </span>
-      <button className="status-more" onClick={() => setOpen((v) => !v)}>
+      <button className="status-more" aria-label="Status menu options" onClick={() => setOpen((v) => !v)}>
         ⋮
       </button>
       {open && (

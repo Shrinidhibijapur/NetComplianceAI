@@ -9,7 +9,7 @@ interface BulkItem {
   deviceId: string;
 }
 
-export function UploadPage({ onUploaded }: { onUploaded: () => void }) {
+export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) {
   const [mode, setMode] = useState<"single" | "bulk">("single");
 
   // single-mode state
@@ -252,7 +252,9 @@ function SingleUploadCard({
           />
         </div>
         <div className="field">
-          <label>Vendor — optional override</label>
+          <span className="faint" style={{ display: "block", marginBottom: "var(--space-1)" }}>
+            Vendor — optional override
+          </span>
           <div className="chip-row">
             <button
               type="button"
@@ -344,7 +346,7 @@ function BulkUploadCard({
       {items.length > 0 && (
         <div className="file-list">
           {items.map((item, idx) => (
-            <div className="file-item" key={idx}>
+            <div className="file-item" key={`${item.file.name}-${idx}`}>
               <span className="name">{item.file.name}</span>
               <input
                 className="device-id"
@@ -376,6 +378,7 @@ function BulkUploadCard({
               <button
                 className="icon-btn danger"
                 title="Remove"
+                aria-label={`Remove ${item.file.name}`}
                 onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
               >
                 ✕

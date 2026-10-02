@@ -304,8 +304,10 @@ def test_evidence_present_for_cisco_controls():
     evidence = result.controls.get("_evidence", {})
     assert "ssh_version" in evidence, "_evidence must include ssh_version"
     ev = evidence["ssh_version"]
-    assert "line_no" in ev and ev["line_no"] >= 1
-    assert "line_text" in ev and "ssh" in ev["line_text"].lower()
+    assert "line_no" in ev
+    assert ev["line_no"] >= 1
+    assert "line_text" in ev
+    assert "ssh" in ev["line_text"].lower()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

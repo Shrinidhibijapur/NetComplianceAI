@@ -8,8 +8,8 @@ export function TrainingPage({
   refreshKey,
   selectedDeviceId,
 }: {
-  refreshKey: number;
-  selectedDeviceId: number | null;
+  readonly refreshKey: number;
+  readonly selectedDeviceId: number | null;
 }) {
   const [records, setRecords] = useState<ConfigSummary[]>([]);
   const [deviceId, setDeviceId] = useState<number | null>(selectedDeviceId);
@@ -120,7 +120,9 @@ function TrainingRow({
           <ConfidenceMeter value={line.confidence} />
         </div>
         <div className="field" style={{ flex: 1, minWidth: 260 }}>
-          <label>Maps to control — click to pick</label>
+          <span className="faint" style={{ display: "block", marginBottom: "var(--space-1)" }}>
+            Maps to control — click to pick
+          </span>
           <div className="chip-row">
             {CANONICAL_KEYS.map((k) => (
               <button
@@ -153,8 +155,8 @@ function TrainingRow({
             Closest known examples:
           </div>
           <div className="examples-list">
-            {line.matched_examples.map((m, i) => (
-              <div key={i} className="example-row">
+            {line.matched_examples.map((m) => (
+              <div key={`${m.canonical_key}-${m.line_text}`} className="example-row">
                 <code>{m.line_text}</code> → <strong>{m.canonical_key}</strong> ({m.vendor},{" "}
                 {Math.round(m.score * 100)}%)
               </div>

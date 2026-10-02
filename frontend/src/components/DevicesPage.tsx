@@ -8,8 +8,8 @@ export function DevicesPage({
   refreshKey,
   onTrain,
 }: {
-  refreshKey: number;
-  onTrain: (id: number) => void;
+  readonly refreshKey: number;
+  readonly onTrain: (id: number) => void;
 }) {
   const [records, setRecords] = useState<ConfigSummary[] | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);

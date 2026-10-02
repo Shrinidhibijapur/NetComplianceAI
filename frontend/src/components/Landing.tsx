@@ -28,7 +28,7 @@ const STEPS = [
   { n: "04", title: "Report", body: "Export a branded PDF audit report to hand to your security team." },
 ];
 
-export function Landing({ onEnter }: { onEnter: () => void }) {
+export function Landing({ onEnter }: { readonly onEnter: () => void }) {
   return (
     <div className="landing">
       <section className="hero-section">

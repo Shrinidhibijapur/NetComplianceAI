@@ -19,7 +19,7 @@ class RuleValidationError(ValueError):
     pass
 
 
-def _validate_raw_rule(rule_dict: dict[str, Any], framework: str, filename: str) -> None:
+def _validate_raw_rule(rule_dict: dict[str, Any], filename: str) -> None:
     if not isinstance(rule_dict, dict):
         raise RuleValidationError(f"{filename}: rule entry must be a dictionary mapping")
 
@@ -54,7 +54,7 @@ def load_rules(framework: str) -> list[ComplianceRule]:
     rules: list[ComplianceRule] = []
 
     for item in raw_rules:
-        _validate_raw_rule(item, framework, path.name)
+        _validate_raw_rule(item, path.name)
         if "framework" not in item:
             item["framework"] = framework.upper()
         if not item.get("source"):

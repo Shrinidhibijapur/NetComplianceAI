@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -60,7 +62,6 @@ def _log_rejection(db: Session, filename: str, reason: str) -> None:
 
 @router.post(
     "/upload",
-    response_model=NormalizedConfig,
     responses={
         400: {"description": "Invalid upload file or request parameter"},
         413: {"description": "File size exceeds upload limit"},
@@ -71,7 +72,7 @@ async def upload_config(
     file: UploadFile = File(...),
     vendor: str = Form(""),  # optional manual override; blank/"auto" = identify from content
     device_id: str = Form(...),
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> NormalizedConfig:
     try:
         raw_config = await _read_validated(file)
@@ -83,7 +84,6 @@ async def upload_config(
 
 @router.post(
     "/bulk",
-    response_model=list[BulkItemResult],
     responses={
         400: {"description": "Mismatched parameters (files vs device_ids or vendors)"},
     },
@@ -92,7 +92,7 @@ async def upload_bulk(
     files: list[UploadFile] = File(...),
     device_ids: list[str] = Form(...),
     vendors: list[str] = Form(default=[]),  # optional; if given, one per file ("" = auto)
-    db: Session = Depends(get_db),
+    db: Annotated[Session, Depends(get_db)] = None,
 ) -> list[BulkItemResult]:
     """Unified bulk ingestion (Section 8, Phase 5) — one device_id (and optional vendor) per
     file, same order as `files`. Each file succeeds or fails on its own."""
@@ -130,8 +130,8 @@ class ConfigSummary(BaseModel):
     created_at: str
 
 
-@router.get("/records", response_model=list[ConfigSummary])
-def list_records(db: Session = Depends(get_db)) -> list[ConfigSummary]:
+@router.get("/records")
+def list_records(db: Annotated[Session, Depends(get_db)]) -> list[ConfigSummary]:
     records = db.query(ConfigRecord).order_by(ConfigRecord.created_at.desc()).all()
     return [
         ConfigSummary(

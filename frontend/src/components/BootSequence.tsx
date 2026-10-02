@@ -7,7 +7,7 @@ const LINES = [
   "> ready",
 ];
 
-export function BootSequence({ onComplete }: { onComplete: () => void }) {
+export function BootSequence({ onComplete }: { readonly onComplete: () => void }) {
   const [visible, setVisible] = useState(0);
 
   useEffect(() => {
@@ -22,8 +22,8 @@ export function BootSequence({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="boot-screen">
       <div className="boot-lines">
-        {LINES.slice(0, visible).map((line, i) => (
-          <div className="boot-line" key={i}>
+        {LINES.slice(0, visible).map((line) => (
+          <div className="boot-line" key={line}>
             {line}
           </div>
         ))}

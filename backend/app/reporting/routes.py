@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -18,7 +20,9 @@ router = APIRouter(prefix="/reporting", tags=["reporting"])
         404: {"description": "Config record not found"},
     },
 )
-def download_report_pdf(config_id: int, framework: str = "CIS", db: Session = Depends(get_db)) -> Response:
+def download_report_pdf(
+    config_id: int, framework: str = "CIS", db: Annotated[Session, Depends(get_db)] = None
+) -> Response:
     record = db.get(ConfigRecord, config_id)
     if record is None:
         raise HTTPException(status_code=404, detail=f"No config record with id {config_id}")
