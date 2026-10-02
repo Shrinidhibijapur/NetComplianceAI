@@ -44,7 +44,7 @@ export function TrainingPage({
     if (!canonicalKey) return;
     await api.labelLine(vendor, line.line_text, canonicalKey);
     toast(`Mapped to ${canonicalKey} — future devices with this phrasing auto-classify.`, "success");
-    setLines((prev) => (prev ? prev.filter((l) => l.line_text !== line.line_text) : prev));
+    setLines((prev) => prev?.filter((l) => l.line_text !== line.line_text) ?? null);
   }
 
   return (
@@ -79,7 +79,7 @@ export function TrainingPage({
       {error && <div className="error-banner">{error}</div>}
       {busy && <div className="faint">Classifying lines…</div>}
 
-      {lines && lines.length === 0 && (
+      {lines?.length === 0 && (
         <div className="card">
           <div className="empty">
             Nothing pending for this device — every line was parsed or already labeled.
@@ -102,8 +102,8 @@ function TrainingRow({
   line,
   onConfirm,
 }: {
-  line: LineClassification;
-  onConfirm: (line: LineClassification, key: string) => Promise<void>;
+  readonly line: LineClassification;
+  readonly onConfirm: (line: LineClassification, key: string) => Promise<void>;
 }) {
   const [choice, setChoice] = useState(line.suggested_canonical_key ?? "");
   const [saving, setSaving] = useState(false);

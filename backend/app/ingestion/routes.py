@@ -69,10 +69,10 @@ def _log_rejection(db: Session, filename: str, reason: str) -> None:
     },
 )
 async def upload_config(
-    file: UploadFile = File(...),
-    vendor: str = Form(""),  # optional manual override; blank/"auto" = identify from content
-    device_id: str = Form(...),
-    db: Annotated[Session, Depends(get_db)] = None,
+    file: Annotated[UploadFile, File(...)],
+    device_id: Annotated[str, Form(...)],
+    db: Annotated[Session, Depends(get_db)],
+    vendor: Annotated[str, Form()] = "",
 ) -> NormalizedConfig:
     try:
         raw_config = await _read_validated(file)
@@ -89,10 +89,10 @@ async def upload_config(
     },
 )
 async def upload_bulk(
-    files: list[UploadFile] = File(...),
-    device_ids: list[str] = Form(...),
-    vendors: list[str] = Form(default=[]),  # optional; if given, one per file ("" = auto)
-    db: Annotated[Session, Depends(get_db)] = None,
+    files: Annotated[list[UploadFile], File(...)],
+    device_ids: Annotated[list[str], Form(...)],
+    db: Annotated[Session, Depends(get_db)],
+    vendors: Annotated[list[str], Form()] = [],
 ) -> list[BulkItemResult]:
     """Unified bulk ingestion (Section 8, Phase 5) — one device_id (and optional vendor) per
     file, same order as `files`. Each file succeeds or fails on its own."""

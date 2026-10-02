@@ -318,6 +318,7 @@
   max-width: 920px;
   margin: 0 auto;
   padding: var(--space-6) var(--space-5) 80px;
+  animation: fade-up 0.25s ease both;
 }
 
 .page-head {
@@ -687,6 +688,18 @@
   padding: var(--space-4);
   cursor: pointer;
   transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.device-card-trigger {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .device-card:hover {
@@ -1078,10 +1091,6 @@ td.expand-row {
 
 .chip:active {
   transform: scale(0.97);
-}
-
-.page {
-  animation: fade-up 0.25s ease both;
 }
 
 @keyframes fade-up {

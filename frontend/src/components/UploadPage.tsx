@@ -198,18 +198,18 @@ function SingleUploadCard({
   busy,
   submitSingle,
 }: {
-  file: File | null;
-  setFile: (f: File | null) => void;
-  deviceId: string;
-  setDeviceId: (id: string) => void;
-  vendor: string;
-  setVendor: (v: string) => void;
-  customVendor: string;
-  setCustomVendor: (cv: string) => void;
-  dragging: boolean;
-  setDragging: (d: boolean) => void;
-  busy: boolean;
-  submitSingle: () => void;
+  readonly file: File | null;
+  readonly setFile: (f: File | null) => void;
+  readonly deviceId: string;
+  readonly setDeviceId: (id: string) => void;
+  readonly vendor: string;
+  readonly setVendor: (v: string) => void;
+  readonly customVendor: string;
+  readonly setCustomVendor: (cv: string) => void;
+  readonly dragging: boolean;
+  readonly setDragging: (d: boolean) => void;
+  readonly busy: boolean;
+  readonly submitSingle: () => void;
 }) {
   return (
     <div className="card">
@@ -315,13 +315,13 @@ function BulkUploadCard({
   busy,
   submitBulk,
 }: {
-  items: BulkItem[];
-  setItems: React.Dispatch<React.SetStateAction<BulkItem[]>>;
-  addBulkFiles: (files: FileList | null) => void;
-  dragging: boolean;
-  setDragging: (d: boolean) => void;
-  busy: boolean;
-  submitBulk: () => void;
+  readonly items: BulkItem[];
+  readonly setItems: React.Dispatch<React.SetStateAction<BulkItem[]>>;
+  readonly addBulkFiles: (files: FileList | null) => void;
+  readonly dragging: boolean;
+  readonly setDragging: (d: boolean) => void;
+  readonly busy: boolean;
+  readonly submitBulk: () => void;
 }) {
   return (
     <div className="card">

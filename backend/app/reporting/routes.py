@@ -21,7 +21,7 @@ router = APIRouter(prefix="/reporting", tags=["reporting"])
     },
 )
 def download_report_pdf(
-    config_id: int, framework: str = "CIS", db: Annotated[Session, Depends(get_db)] = None
+    config_id: int, db: Annotated[Session, Depends(get_db)], framework: str = "CIS"
 ) -> Response:
     record = db.get(ConfigRecord, config_id)
     if record is None:

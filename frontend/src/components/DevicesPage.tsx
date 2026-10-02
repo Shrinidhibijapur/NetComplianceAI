@@ -41,7 +41,7 @@ export function DevicesPage({
 
       {error && <div className="error-banner">{error}</div>}
 
-      {records && records.length === 0 && (
+      {records?.length === 0 && (
         <div className="card">
           <div className="empty">No devices ingested yet — head to Upload to add one.</div>
         </div>
@@ -66,52 +66,41 @@ export function DevicesPage({
             {filtered?.map((r) => {
               const isOpen = expanded === r.id;
               return (
-                <div
-                  key={r.id}
-                  role="button"
-                  tabIndex={0}
-                  className={`device-card${isOpen ? " expanded" : ""}`}
-                  onClick={() => !isOpen && setExpanded(r.id)}
-                  onKeyDown={(e) => {
-                    if ((e.key === "Enter" || e.key === " ") && !isOpen) {
-                      e.preventDefault();
-                      setExpanded(r.id);
-                    }
-                  }}
-                >
-                  <div className="device-card-head">
-                    <div>
-                      <strong>{r.device_id}</strong>
-                      <div className="device-card-meta">
-                        <span>{r.vendor}</span>
-                        <span>{new Date(r.created_at).toLocaleDateString()}</span>
+                <article key={r.id} className={`device-card${isOpen ? " expanded" : ""}`}>
+                  <button
+                    type="button"
+                    className="device-card-trigger"
+                    aria-expanded={isOpen}
+                    aria-label={`${r.device_id} (${r.vendor}) details`}
+                    onClick={() => setExpanded(isOpen ? null : r.id)}
+                  >
+                    <div className="device-card-head">
+                      <div>
+                        <strong>{r.device_id}</strong>
+                        <div className="device-card-meta">
+                          <span>{r.vendor}</span>
+                          <span>{new Date(r.created_at).toLocaleDateString()}</span>
+                        </div>
                       </div>
+                      <span className="icon-btn" aria-hidden="true">
+                        {isOpen ? "▲" : "▼"}
+                      </span>
                     </div>
-                    <button
-                      className="icon-btn"
-                      title={isOpen ? "Collapse" : "Expand"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpanded(isOpen ? null : r.id);
-                      }}
-                    >
-                      {isOpen ? "▲" : "▼"}
-                    </button>
-                  </div>
 
-                  <div className="device-card-foot">
-                    <ConfidenceMeter value={r.parse_confidence} />
-                    <span className={r.unmapped_count > 0 ? "faint" : "muted"}>
-                      {r.unmapped_count > 0 ? `${r.unmapped_count} unmapped` : "fully parsed"}
-                    </span>
-                  </div>
+                    <div className="device-card-foot">
+                      <ConfidenceMeter value={r.parse_confidence} />
+                      <span className={r.unmapped_count > 0 ? "faint" : "muted"}>
+                        {r.unmapped_count > 0 ? `${r.unmapped_count} unmapped` : "fully parsed"}
+                      </span>
+                    </div>
+                  </button>
 
                   {isOpen && (
-                    <div onClick={(e) => e.stopPropagation()} style={{ marginTop: "var(--space-4)" }}>
+                    <div style={{ marginTop: "var(--space-4)" }}>
                       <ResultsPanel record={r} onTrain={() => onTrain(r.id)} />
                     </div>
                   )}
-                </div>
+                </article>
               );
             })}
           </div>
