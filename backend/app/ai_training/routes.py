@@ -1,10 +1,33 @@
+"""
+Phase 4 AI-training routes.
+
+Extends the Phase 1/2 label endpoint with:
+  - POST /ai-training/approve     — generalise a line into a ParseRule and trigger re-normalization
+  - POST /ai-training/preview     — preview: how many lines in a config the pattern would match
+  - GET  /ai-training/rules       — list all ParseRules
+  - PATCH /ai-training/rules/{id}/disable — disable (soft-delete) a rule
+  - DELETE /ai-training/rules/{id}        — permanently remove a rule
+
+All write operations emit an AuditEvent.
+"""
+
+from __future__ import annotations
+
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from ..db import ConfigRecord, TrainingExampleRow, get_db
-from ..models import LabelRequest, PendingTrainingResponse
+from ..db import AuditEvent, ConfigRecord, ParseRule, SessionLocal, TrainingExampleRow, get_db
+from ..models import (
+    ApproveRuleRequest,
+    LabelRequest,
+    LearnedRulesResponse,
+    ParseRuleOut,
+    PendingTrainingResponse,
+    RulePreviewResult,
+)
 from .embedder import EmbeddingUnavailable
 from .engine import classify_line
 from .state import vector_store
@@ -12,6 +35,42 @@ from .store import TrainingExample
 
 router = APIRouter(prefix="/ai-training", tags=["ai-training"])
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _renormalize_vendor(vendor: str) -> int:
+    """Re-run normalize_config on every ConfigRecord for this vendor.
+
+    Returns the count of records that were updated.
+    """
+    from ..normalization.engine import normalize_config
+
+    db = SessionLocal()
+    try:
+        records = db.query(ConfigRecord).filter(ConfigRecord.vendor == vendor).all()
+        updated = 0
+        for record in records:
+            if not record.raw_config:
+                continue
+            try:
+                result = normalize_config(vendor, record.device_id, record.raw_config)
+                # mode="json" converts datetime → ISO string so SQLAlchemy JSON column serializes cleanly
+                record.normalized = result.model_dump(mode="json")
+                record.parse_confidence = result.parse_confidence
+                updated += 1
+            except Exception:  # noqa: BLE001
+                pass
+        db.commit()
+        return updated
+    finally:
+        db.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Existing Phase 2 endpoints (unchanged behaviour)
+# ─────────────────────────────────────────────────────────────────────────────
 
 @router.get(
     "/pending/{config_id}",
@@ -63,3 +122,195 @@ def label_line(
         return {"status": "saved_not_indexed", "id": row.id}
 
     return {"status": "learned", "id": row.id}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 4: ParseRule approval
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/approve", response_model=dict)
+def approve_rule(
+    payload: ApproveRuleRequest, db: Annotated[Session, Depends(get_db)]
+) -> dict:
+    """Admin approves a generalized parse rule from the Training UI.
+
+    Steps:
+    1. Validate the regex pattern.
+    2. Save a ParseRule row (active=1).
+    3. Re-normalize all existing ConfigRecords for the same vendor so findings update immediately.
+    4. Emit an AuditEvent.
+    """
+    # The regex is already validated by the Pydantic field_validator — compile once more for safety
+    try:
+        re.compile(payload.pattern)
+    except re.error as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid regex: {exc}") from exc
+
+    rule = ParseRule(
+        vendor=payload.vendor,
+        platform=payload.platform,
+        os_range=payload.os_range,
+        pattern=payload.pattern,
+        example_line=payload.example_line,
+        target_field=payload.target_field,
+        value_type=payload.value_type,
+        value_map=payload.value_map or {},
+        static_value=payload.static_value,
+        semantic_category=payload.semantic_category,
+        source="human",
+        confidence=payload.confidence,
+        approved_by=payload.approved_by,
+        active=1,
+    )
+    db.add(rule)
+
+    audit = AuditEvent(
+        event_type="rule_approved",
+        actor=payload.approved_by,
+        subject=payload.target_field,
+        config_id=None,
+        details={
+            "vendor": payload.vendor,
+            "pattern": payload.pattern,
+            "target_field": payload.target_field,
+            "example_line": payload.example_line,
+        },
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(rule)
+
+    # Re-normalize existing configs for this vendor (D1 regression fix)
+    updated_count = _renormalize_vendor(payload.vendor)
+
+    return {
+        "status": "approved",
+        "rule_id": rule.id,
+        "renormalized_configs": updated_count,
+    }
+
+
+@router.post("/preview", response_model=RulePreviewResult)
+def preview_pattern(
+    payload: dict, db: Annotated[Session, Depends(get_db)]
+) -> RulePreviewResult:
+    """Preview: given a pattern and a config_id, show how many lines it would match.
+
+    Request body: {"pattern": "...", "config_id": 123}
+    """
+    pattern_str = payload.get("pattern", "")
+    config_id = payload.get("config_id")
+
+    try:
+        compiled = re.compile(pattern_str, re.MULTILINE)
+    except re.error as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid regex: {exc}") from exc
+
+    if config_id is None:
+        return RulePreviewResult(pattern=pattern_str, match_count=0, matched_lines=[])
+
+    record = db.get(ConfigRecord, config_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No config record with id {config_id}")
+
+    raw = record.raw_config or ""
+    matched_lines = []
+    for m in compiled.finditer(raw):
+        line_no = raw.count("\n", 0, m.start())
+        lines = raw.splitlines()
+        line_text = lines[line_no] if line_no < len(lines) else ""
+        matched_lines.append(line_text.strip())
+
+    return RulePreviewResult(
+        pattern=pattern_str,
+        match_count=len(matched_lines),
+        matched_lines=matched_lines[:10],
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 4: Rule management
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/rules", response_model=LearnedRulesResponse)
+def list_rules(db: Annotated[Session, Depends(get_db)]) -> LearnedRulesResponse:
+    """List all ParseRules (active and disabled), ordered newest-first."""
+    rows = db.query(ParseRule).order_by(ParseRule.created_at.desc()).all()
+    rules_out = []
+    for r in rows:
+        rules_out.append(
+            ParseRuleOut(
+                id=r.id,
+                vendor=r.vendor,
+                platform=r.platform or "*",
+                os_range=r.os_range or "*",
+                pattern=r.pattern,
+                example_line=r.example_line,
+                target_field=r.target_field,
+                value_type=r.value_type or "string",
+                value_map=r.value_map or {},
+                static_value=r.static_value,
+                semantic_category=r.semantic_category or "",
+                source=r.source or "human",
+                confidence=r.confidence or 1.0,
+                approved_by=r.approved_by or "admin",
+                approved_at=r.approved_at,
+                active=bool(r.active),
+                created_at=r.created_at,
+            )
+        )
+    return LearnedRulesResponse(rules=rules_out, total=len(rules_out))
+
+
+@router.patch("/rules/{rule_id}/disable", response_model=dict)
+def disable_rule(
+    rule_id: int, db: Annotated[Session, Depends(get_db)]
+) -> dict:
+    """Disable a ParseRule (soft-delete). The rule stays in the DB for audit purposes."""
+    rule = db.get(ParseRule, rule_id)
+    if rule is None:
+        raise HTTPException(status_code=404, detail=f"No parse rule with id {rule_id}")
+    if not rule.active:
+        return {"status": "already_disabled", "rule_id": rule_id}
+
+    rule.active = 0
+    db.add(
+        AuditEvent(
+            event_type="rule_disabled",
+            actor="admin",
+            subject=rule.target_field,
+            config_id=None,
+            details={"rule_id": rule_id, "vendor": rule.vendor, "pattern": rule.pattern},
+        )
+    )
+    db.commit()
+
+    # Re-normalize so the now-disabled rule no longer affects findings
+    updated_count = _renormalize_vendor(rule.vendor)
+    return {"status": "disabled", "rule_id": rule_id, "renormalized_configs": updated_count}
+
+
+@router.delete("/rules/{rule_id}", response_model=dict)
+def delete_rule(
+    rule_id: int, db: Annotated[Session, Depends(get_db)]
+) -> dict:
+    """Permanently delete a ParseRule and re-normalize affected configs."""
+    rule = db.get(ParseRule, rule_id)
+    if rule is None:
+        raise HTTPException(status_code=404, detail=f"No parse rule with id {rule_id}")
+
+    vendor = rule.vendor
+    db.add(
+        AuditEvent(
+            event_type="rule_deleted",
+            actor="admin",
+            subject=rule.target_field,
+            config_id=None,
+            details={"rule_id": rule_id, "vendor": vendor, "pattern": rule.pattern},
+        )
+    )
+    db.delete(rule)
+    db.commit()
+
+    updated_count = _renormalize_vendor(vendor)
+    return {"status": "deleted", "rule_id": rule_id, "renormalized_configs": updated_count}

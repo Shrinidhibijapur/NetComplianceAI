@@ -4,6 +4,8 @@ import type {
   ConfigSummary,
   NormalizedConfig,
   PendingTrainingResponse,
+  LearnedRulesResponse,
+  RulePreviewResult,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -71,23 +73,115 @@ export const api = {
     });
   },
 
+  // ── Phase 4: ParseRule management ─────────────────────────────────────────
+
+  approveRule(payload: {
+    vendor: string;
+    example_line: string;
+    pattern: string;
+    target_field: string;
+    value_type?: string;
+    value_map?: Record<string, unknown>;
+    static_value?: unknown;
+    platform?: string;
+    os_range?: string;
+    semantic_category?: string;
+    confidence?: number;
+    approved_by?: string;
+  }): Promise<{ status: string; rule_id: number; renormalized_configs: number }> {
+    return request("/ai-training/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
+
+  previewPattern(
+    pattern: string,
+    configId: number,
+  ): Promise<RulePreviewResult> {
+    return request("/ai-training/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pattern, config_id: configId }),
+    });
+  },
+
+  listRules(): Promise<LearnedRulesResponse> {
+    return request("/ai-training/rules");
+  },
+
+  disableRule(ruleId: number): Promise<{ status: string; rule_id: number; renormalized_configs: number }> {
+    return request(`/ai-training/rules/${ruleId}/disable`, { method: "PATCH" });
+  },
+
+  deleteRule(ruleId: number): Promise<{ status: string; rule_id: number; renormalized_configs: number }> {
+    return request(`/ai-training/rules/${ruleId}`, { method: "DELETE" });
+  },
+
   health(): Promise<unknown> {
     return request("/health");
   },
 };
 
+// Phase 3 expanded canonical vocabulary (35+ fields)
 export const CANONICAL_KEYS = [
+  // Remote access
   "ssh_version",
   "telnet_enabled",
   "http_mgmt_enabled",
+  "https_mgmt_enabled",
+  "console_timeout_seconds",
+  "vty_timeout_seconds",
+  "session_timeout_seconds",
+  "login_banner_configured",
+  // Crypto
+  "ssh_ciphers",
+  "ssh_macs",
+  "tls_version",
+  // Authentication
   "password_encryption",
-  "logging_enabled",
-  "ntp_configured",
-  "acl_default_deny",
+  "password_hash_type",
+  "aaa_enabled",
+  "local_accounts_disabled",
+  "login_retry_limit",
+  "lockout_configured",
+  // SNMP
   "snmp_community_default",
+  "snmp_version",
+  "snmp_enabled",
+  // Logging & Time
+  "logging_enabled",
+  "remote_syslog_configured",
+  "admin_logging_enabled",
+  "ntp_configured",
+  "ntp_authentication_enabled",
+  // ACLs
+  "acl_default_deny",
+  "mgmt_acl_configured",
+  "any_any_permit_present",
+  // Hygiene / unused services
+  "cdp_enabled",
+  "lldp_enabled",
+  "source_routing_enabled",
+  "finger_enabled",
+  "proxy_arp_enabled",
+  // Cloud
+  "ingress_any_any_allowed",
+  "egress_any_any_allowed",
 ] as const;
+
+export type CanonicalKey = (typeof CANONICAL_KEYS)[number];
 
 // Empty vendor = let the backend identify it from the file; any other value is a manual override.
 export const AUTO_VENDOR = "";
 
-export const KNOWN_VENDORS = ["cisco_ios", "juniper_junos"] as const;
+export const KNOWN_VENDORS = [
+  "cisco_ios",
+  "juniper_junos",
+  "arista_eos",
+  "fortinet_fortios",
+  "mikrotik_routeros",
+  "sonic",
+  "aws_security_group",
+] as const;

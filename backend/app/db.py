@@ -42,6 +42,44 @@ class TrainingExampleRow(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class ParseRule(Base):
+    """Phase 4: a persisted, admin-approved parse rule that the normalizer
+    consults after built-in YAML profiles (closes D1 & D2).
+
+    Each rule is a generalized regex (with an optional capture group) that
+    maps a matched configuration line to a target_field value — no code change
+    or restart required after the admin approves it in the UI.
+    """
+
+    __tablename__ = "parse_rules"
+
+    id = Column(Integer, primary_key=True)
+    # Scope — use "*" to match any vendor / platform / os_range
+    vendor = Column(String, index=True, nullable=False)
+    platform = Column(String, default="*")   # e.g. "ios", "junos", "*"
+    os_range = Column(String, default="*")   # e.g. ">=15.0", "*"
+    # Generalized regex (MULTILINE); may contain one capture group for value extraction
+    pattern = Column(Text, nullable=False)
+    # Original line the admin reviewed (for auditability)
+    example_line = Column(Text, nullable=False)
+    # Dotted path into NormalizedConfig.controls, e.g. "ssh_version"
+    target_field = Column(String, nullable=False, index=True)
+    # How the captured group is interpreted: "string" | "int" | "float" | "bool" | "map"
+    value_type = Column(String, default="string")
+    # For "map" type: JSON dict mapping raw captured text -> Python value
+    value_map = Column(JSON, default=dict)
+    # Static value when no capture group (pattern presence alone sets this value)
+    static_value = Column(JSON, nullable=True)
+    semantic_category = Column(String, default="")   # e.g. "Authentication", "Remote Access"
+    source = Column(String, default="human")         # "human" | "llm-approved"
+    confidence = Column(Float, default=1.0)          # embedding confidence at proposal time
+    approved_by = Column(String, default="admin")
+    approved_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    # 1 = active, 0 = disabled (integer for SQLite compatibility)
+    active = Column(Integer, default=1)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class AuditEvent(Base):
     """Append-only record of a state-changing action. Phase 1 logs ingestion only (Phase 6 widens it)."""
 
@@ -49,7 +87,8 @@ class AuditEvent(Base):
 
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
-    event_type = Column(String, index=True)  # config_uploaded | config_upload_rejected
+    # config_uploaded | config_upload_rejected | rule_approved | rule_disabled | rule_deleted
+    event_type = Column(String, index=True)
     actor = Column(String, default="anonymous")
     subject = Column(String)  # device_id or filename
     config_id = Column(Integer, index=True)

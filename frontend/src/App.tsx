@@ -3,12 +3,13 @@ import "./App.css";
 import { UploadPage } from "./components/UploadPage";
 import { DevicesPage } from "./components/DevicesPage";
 import { TrainingPage } from "./components/TrainingPage";
+import { LearnedRulesPage } from "./components/LearnedRulesPage";
 import { Landing } from "./components/Landing";
 import { Toaster } from "./components/Toaster";
 import { BootSequence } from "./components/BootSequence";
 import { StatusMenu } from "./components/StatusMenu";
 
-type Tab = "upload" | "devices" | "training";
+type Tab = "upload" | "devices" | "training" | "rules";
 
 function App() {
   const [entered, setEntered] = useState(false);
@@ -46,6 +47,7 @@ function App() {
     upload: "Config Ingestion",
     devices: "Devices",
     training: "AI Training Engine",
+    rules: "Learned Rules",
   };
 
   return (
@@ -65,8 +67,13 @@ function App() {
           <button className={tab === "devices" ? "active" : ""} onClick={() => setTab("devices")}>
             <span className="sidebar-icon">▤</span>Devices
           </button>
+          {/* INTELLIGENCE section */}
+          <div className="sidebar-section-label">INTELLIGENCE</div>
           <button className={tab === "training" ? "active" : ""} onClick={() => setTab("training")}>
             <span className="sidebar-icon">◈</span>AI Training
+          </button>
+          <button className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}>
+            <span className="sidebar-icon">⊞</span>Learned Rules
           </button>
         </nav>
         <button className="sidebar-exit" onClick={() => setEntered(false)}>
@@ -100,6 +107,9 @@ function App() {
           )}
           {tab === "training" && (
             <TrainingPage refreshKey={refreshKey} selectedDeviceId={trainDeviceId} />
+          )}
+          {tab === "rules" && (
+            <LearnedRulesPage refreshKey={refreshKey} />
           )}
         </div>
       </div>

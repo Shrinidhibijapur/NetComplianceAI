@@ -1,14 +1,19 @@
 """
-Phase 2: profile-driven normalization engine.
+Phase 2 + Phase 4: profile-driven normalization engine.
 
 Replaces the hardcoded VENDOR_RULES dict in normalization/rules.py with
 data from YAML profiles in app/vendors/.
+
+Phase 4 addition: after the profile runs, active ParseRule rows from the
+database are applied so admin-approved learned rules take effect immediately
+without any code change or restart.
 
 Key additions over Phase 1:
   - Device identity extraction (hostname, model, serial, os_version)
   - Hierarchical block awareness (parent_pattern context)
   - "absent" vs "false" distinction
   - Evidence: (line_number, line_text) on every extracted value
+  - Learned parse rules consulted after profile (Phase 4)
   - Falls back to Phase 1 rules.py for any vendor not yet in a profile
     (backward-compat until profiles cover everything)
 """
@@ -132,6 +137,9 @@ def normalize_with_profile(vendor: str, device_id: str, raw_config: str):
     """
     Normalize raw_config using the YAML profile for `vendor`.
     Returns a NormalizedConfig.  Falls back to Phase 1 rules if no profile.
+
+    Phase 4: after the profile runs, active ParseRule rows from the DB
+    are applied to catch any remaining unmapped lines.
     """
     from ..models import NormalizedConfig
     from ..vendors.loader import VENDOR_PROFILES
@@ -158,16 +166,39 @@ def normalize_with_profile(vendor: str, device_id: str, raw_config: str):
         if i not in matched_line_nos and _is_interesting(lines[i])
     ]
 
+    # ── Phase 4: apply learned ParseRules ────────────────────────────────────
+    # Enrich controls with evidence before passing to the learned-rule engine
+    # so it can append to the existing evidence dict.
+    if evidence:
+        controls["_evidence"] = evidence
+
+    try:
+        from ..db import ParseRule, SessionLocal
+        from .parse_rules_engine import apply_parse_rules
+        _db = SessionLocal()
+        try:
+            active_rules = (
+                _db.query(ParseRule)
+                .filter(
+                    ParseRule.active == 1,
+                    (ParseRule.vendor == vendor) | (ParseRule.vendor == "*"),  # type: ignore[operator]
+                )
+                .all()
+            )
+            controls, raw_unmapped_lines = apply_parse_rules(
+                active_rules, vendor, lines, raw_config,
+                controls, raw_unmapped_lines,
+            )
+        finally:
+            _db.close()
+    except Exception:  # noqa: BLE001 — DB unavailable must never crash normalization
+        pass
+
     # ── Confidence ────────────────────────────────────────────────────────────
     meaningful = sum(1 for line in lines if _is_interesting(line))
     parse_confidence = (
         round((meaningful - len(raw_unmapped_lines)) / meaningful, 2) if meaningful else 0.0
     )
-
-    # Enrich controls with evidence as a special "_evidence" key (not a compliance field).
-    # Stored alongside controls so the UI / Phase 5 PDF can cite line numbers.
-    if evidence:
-        controls["_evidence"] = evidence
 
     return NormalizedConfig(
         device_id=device_id,

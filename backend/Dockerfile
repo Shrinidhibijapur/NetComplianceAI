@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --chown=appuser:appuser requirements.lock requirements.txt ./
 
 # Locked resolved dependencies installation (satisfies Sonar docker:S8544)
-RUN pip install --no-cache-dir --only-binary :all: \
+RUN pip install --require-hashes --no-deps --no-cache-dir --only-binary :all: \
     --index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pypi.org/simple \
     -r requirements.lock

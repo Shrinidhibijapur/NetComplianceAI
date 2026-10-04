@@ -70,3 +70,37 @@ export interface PendingTrainingResponse {
   vendor: string;
   classifications: LineClassification[];
 }
+
+// ── Phase 4: ParseRule types ─────────────────────────────────────────────────
+
+export interface ParseRuleOut {
+  id: number;
+  vendor: string;
+  platform: string;
+  os_range: string;
+  pattern: string;
+  example_line: string;
+  target_field: string;
+  value_type: string;
+  value_map: Record<string, unknown>;
+  static_value: unknown;
+  semantic_category: string;
+  source: string;
+  confidence: number;
+  approved_by: string;
+  approved_at: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface LearnedRulesResponse {
+  rules: ParseRuleOut[];
+  total: number;
+}
+
+export interface RulePreviewResult {
+  pattern: string;
+  match_count: number;
+  matched_lines: string[];
+}
+

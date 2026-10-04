@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 
 class NormalizedConfig(BaseModel):
@@ -133,6 +133,77 @@ class LabelRequest(BaseModel):
     vendor: str
     line_text: str
     canonical_key: str
+
+
+class ApproveRuleRequest(BaseModel):
+    """Phase 4: admin approves a learned parse rule from the Training UI.
+
+    The admin provides:
+    - the original unrecognized line (example_line)
+    - a generalized regex pattern (with optional capture group)
+    - the target_field it populates in NormalizedConfig.controls
+    - how to interpret the captured value
+    """
+
+    vendor: str
+    example_line: str
+    pattern: str
+    target_field: str
+    value_type: Literal["string", "int", "float", "bool", "map"] = "string"
+    value_map: dict[str, Any] = Field(default_factory=dict)
+    static_value: Optional[Any] = None
+    platform: str = "*"
+    os_range: str = "*"
+    semantic_category: str = ""
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    approved_by: str = "admin"
+
+    @field_validator("pattern")
+    @classmethod
+    def _valid_regex(cls, v: str) -> str:
+        import re
+        try:
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f"Invalid regex pattern: {exc}") from exc
+        return v
+
+
+class ParseRuleOut(BaseModel):
+    """Phase 4: serialized view of a ParseRule row returned by the API."""
+
+    id: int
+    vendor: str
+    platform: str
+    os_range: str
+    pattern: str
+    example_line: str
+    target_field: str
+    value_type: str
+    value_map: dict[str, Any]
+    static_value: Optional[Any]
+    semantic_category: str
+    source: str
+    confidence: float
+    approved_by: str
+    approved_at: datetime
+    active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RulePreviewResult(BaseModel):
+    """Phase 4: result of a pattern preview — how many lines in a config would match."""
+
+    pattern: str
+    match_count: int
+    matched_lines: list[str]  # first 10 matching lines for UI review
+
+
+class LearnedRulesResponse(BaseModel):
+    rules: list[ParseRuleOut]
+    total: int
 
 
 class BulkItemResult(BaseModel):

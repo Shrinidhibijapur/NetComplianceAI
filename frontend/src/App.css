@@ -76,6 +76,16 @@
   color: var(--accent);
 }
 
+.sidebar-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  padding: var(--space-4) var(--space-3) var(--space-1);
+  text-transform: uppercase;
+}
+
+
 .sidebar-exit {
   margin-top: auto;
   background: transparent;
