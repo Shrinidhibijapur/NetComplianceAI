@@ -19,6 +19,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from ..auth.dependencies import User, require_role
 from ..db import AuditEvent, ConfigRecord, ParseRule, SessionLocal, TrainingExampleRow, get_db
 from ..models import (
     ApproveRuleRequest,
@@ -138,7 +139,7 @@ def label_line(
 def approve_rule(
     payload: ApproveRuleRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
+    user: User = Depends(require_role(["admin", "auditor"])),
 ) -> dict:
     """Admin or Auditor approves a generalized parse rule from the Training UI."""
     try:
@@ -317,7 +318,7 @@ def list_rules(
 def disable_rule(
     rule_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
+    user: User = Depends(require_role(["admin", "auditor"])),
 ) -> dict:
     """Disable a ParseRule (soft-delete). The rule stays in the DB for audit purposes."""
     rule = db.get(ParseRule, rule_id)
@@ -353,7 +354,7 @@ def disable_rule(
 def delete_rule(
     rule_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[User, Depends(require_role(["admin"]))],
+    user: User = Depends(require_role(["admin"])),
 ) -> dict:
     """Permanently delete a ParseRule (Admin only) and re-normalize affected configs."""
     rule = db.get(ParseRule, rule_id)
@@ -368,26 +369,6 @@ def delete_rule(
             subject=rule.target_field,
             config_id=None,
             status="success",
-            details={"rule_id": rule_id, "vendor": vendor, "pattern": rule.pattern},
-        )
-    )
-    db.delete(rule)
-    db.commit()
-
-    updated_count = _renormalize_vendor(vendor)
-    return {"status": "deleted", "rule_id": rule_id, "renormalized_configs": updated_count}
-    """Permanently delete a ParseRule and re-normalize affected configs."""
-    rule = db.get(ParseRule, rule_id)
-    if rule is None:
-        raise HTTPException(status_code=404, detail=f"No parse rule with id {rule_id}")
-
-    vendor = rule.vendor
-    db.add(
-        AuditEvent(
-            event_type="rule_deleted",
-            actor="admin",
-            subject=rule.target_field,
-            config_id=None,
             details={"rule_id": rule_id, "vendor": vendor, "pattern": rule.pattern},
         )
     )

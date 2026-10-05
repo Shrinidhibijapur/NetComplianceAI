@@ -45,33 +45,33 @@ def get_current_user_optional(
 
 
 def get_current_user(
-    user: Annotated[User | None, Depends(get_current_user_optional)] = None,
+    opt_user: Annotated[User | None, Depends(get_current_user_optional)] = None,
 ) -> User:
     """Require valid authenticated user (401 if unauthenticated)."""
-    if user is None:
+    if opt_user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication credentials were not provided or are invalid",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return user
+    return opt_user
 
 
 def require_role(allowed_roles: list[str]) -> Callable:
     """Dependency factory enforcing role-based access control (RBAC)."""
 
-    def role_checker(user: User = Depends(get_current_user)) -> User:
-        if user.role not in allowed_roles and "admin" not in allowed_roles:
+    def role_checker(curr_user: User = Depends(get_current_user)) -> User:
+        if curr_user.role not in allowed_roles and "admin" not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Action prohibited: requires one of roles {allowed_roles}",
             )
         # Admin super-user bypass
-        if user.role == "admin" or user.role in allowed_roles:
-            return user
+        if curr_user.role == "admin" or curr_user.role in allowed_roles:
+            return curr_user
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Action prohibited: user role '{user.role}' lacks required permission",
+            detail=f"Action prohibited: user role '{curr_user.role}' lacks required permission",
         )
 
     return role_checker
