@@ -1,4 +1,4 @@
-export type NavTab = "dashboard" | "upload" | "devices" | "findings" | "training" | "rules";
+export type NavTab = "dashboard" | "upload" | "devices" | "findings" | "training" | "rules" | "audit";
 
 interface SidebarProps {
   readonly activeTab: NavTab;
@@ -118,6 +118,12 @@ export function Sidebar({ activeTab, onSelectTab, onExit }: SidebarProps) {
               onClick={() => onSelectTab("findings")}
               icon="🛡"
               label="Audit & Findings"
+            />
+            <SidebarButton
+              active={activeTab === "audit"}
+              onClick={() => onSelectTab("audit")}
+              icon="📜"
+              label="Security Audit Trail"
             />
           </div>
 

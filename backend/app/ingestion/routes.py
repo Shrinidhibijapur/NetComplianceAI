@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..audit import log_event
-from ..db import ConfigRecord, get_db
+from ..auth.dependencies import require_role
+from ..db import ConfigRecord, User, get_db
+from ..middleware import sanitize_filename
 from ..models import BulkItemResult, NormalizedConfig
 from ..normalization.engine import normalize_config
 from .redaction import redact_secrets
@@ -17,18 +19,19 @@ router = APIRouter(prefix="/ingest", tags=["ingestion"])
 
 
 async def _read_validated(file: UploadFile) -> str:
-    # ponytail: Starlette has already spooled the multipart body to a temp file by here, so this
-    # bounds memory, not disk/bandwidth. Put a proxy body-size limit (e.g. nginx) in front for that.
     data = await file.read(config.MAX_UPLOAD_BYTES + 1)
     return validate_and_decode(data, config.MAX_UPLOAD_BYTES)
 
 
-def _ingest_one(db: Session, vendor_hint: str | None, device_id: str, raw_config: str) -> NormalizedConfig:
+def _ingest_one(
+    db: Session,
+    vendor_hint: str | None,
+    device_id: str,
+    raw_config: str,
+    actor: str = "anonymous",
+) -> NormalizedConfig:
     vendor, vendor_source = resolve_vendor(vendor_hint, raw_config)
 
-    # Normalize against the original text first — some L1 rules key off the secret
-    # value itself (e.g. default SNMP community "public") — then redact before the
-    # raw config is ever persisted (Section 6: no secrets at rest or in the UI).
     normalized = normalize_config(vendor=vendor, device_id=device_id, raw_config=raw_config)
     normalized.vendor_source = vendor_source
 
@@ -40,23 +43,26 @@ def _ingest_one(db: Session, vendor_hint: str | None, device_id: str, raw_config
         parse_confidence=normalized.parse_confidence,
     )
     db.add(record)
-    db.flush()  # assigns record.id so the audit row below can reference it
+    db.flush()
 
     log_event(
         db,
         "config_uploaded",
         subject=device_id,
         config_id=record.id,
+        actor=actor,
+        status="success",
         details={"vendor": vendor, "vendor_source": vendor_source, "bytes": len(raw_config.encode("utf-8"))},
     )
-    db.commit()  # config + audit row land together or not at all
+    db.commit()
 
     normalized.id = record.id
     return normalized
 
 
-def _log_rejection(db: Session, filename: str, reason: str) -> None:
-    log_event(db, "config_upload_rejected", subject=filename, details={"reason": reason})
+def _log_rejection(db: Session, filename: str, reason: str, actor: str = "anonymous") -> None:
+    clean_fn = sanitize_filename(filename)
+    log_event(db, "config_upload_rejected", subject=clean_fn, actor=actor, status="failure", details={"reason": reason})
     db.commit()
 
 
@@ -64,6 +70,7 @@ def _log_rejection(db: Session, filename: str, reason: str) -> None:
     "/upload",
     responses={
         400: {"description": "Invalid upload file or request parameter"},
+        403: {"description": "Auditor or Admin privileges required"},
         413: {"description": "File size exceeds upload limit"},
         415: {"description": "Unsupported media type or non-UTF8 content"},
     },
@@ -72,30 +79,33 @@ async def upload_config(
     file: Annotated[UploadFile, File(...)],
     device_id: Annotated[str, Form(...)],
     db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
     vendor: Annotated[str, Form()] = "",
 ) -> NormalizedConfig:
+    clean_filename = sanitize_filename(file.filename)
     try:
         raw_config = await _read_validated(file)
     except UploadRejected as exc:
-        _log_rejection(db, file.filename or device_id, exc.message)
+        _log_rejection(db, clean_filename or device_id, exc.message, actor=user.username)
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
-    return _ingest_one(db, vendor, device_id, raw_config)
+    return _ingest_one(db, vendor, device_id, raw_config, actor=user.username)
 
 
 @router.post(
     "/bulk",
     responses={
         400: {"description": "Mismatched parameters (files vs device_ids or vendors)"},
+        403: {"description": "Auditor or Admin privileges required"},
     },
 )
 async def upload_bulk(
     files: Annotated[list[UploadFile], File(...)],
     device_ids: Annotated[list[str], Form(...)],
     db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
     vendors: Annotated[list[str], Form()] = [],
 ) -> list[BulkItemResult]:
-    """Unified bulk ingestion (Section 8, Phase 5) — one device_id (and optional vendor) per
-    file, same order as `files`. Each file succeeds or fails on its own."""
+    """Unified bulk ingestion with per-file status isolation and path traversal protection."""
     if len(device_ids) != len(files) or (vendors and len(vendors) != len(files)):
         raise HTTPException(
             status_code=400,
@@ -105,15 +115,15 @@ async def upload_bulk(
 
     results: list[BulkItemResult] = []
     for file, vendor, device_id in zip(files, vendors, device_ids):
-        filename = file.filename or device_id
+        filename = sanitize_filename(file.filename or device_id)
         try:
             raw_config = await _read_validated(file)
-            normalized = _ingest_one(db, vendor, device_id, raw_config)
+            normalized = _ingest_one(db, vendor, device_id, raw_config, actor=user.username)
             results.append(BulkItemResult(filename=filename, device_id=device_id, status="ok", result=normalized))
         except UploadRejected as exc:
-            _log_rejection(db, filename, exc.message)
+            _log_rejection(db, filename, exc.message, actor=user.username)
             results.append(BulkItemResult(filename=filename, device_id=device_id, status="error", error=exc.message))
-        except Exception as exc:  # one bad file must not sink the batch
+        except Exception as exc:
             db.rollback()
             results.append(
                 BulkItemResult(filename=filename, device_id=device_id, status="error", error=f"Processing failed: {exc}")
@@ -131,22 +141,57 @@ class ConfigSummary(BaseModel):
 
 
 @router.get("/records")
-def list_records(db: Annotated[Session, Depends(get_db)]) -> list[ConfigSummary]:
-    records = db.query(ConfigRecord).order_by(ConfigRecord.created_at.desc()).all()
+def list_records(
+    db: Annotated[Session, Depends(get_db)],
+    page: int | None = None,
+    page_size: int | None = None,
+) -> list[ConfigSummary] | dict:
+    query = db.query(ConfigRecord).order_by(ConfigRecord.created_at.desc(), ConfigRecord.id.desc())
+
+    if page is not None or page_size is not None:
+        p = max(1, page or 1)
+        ps = min(max(1, page_size or 20), 100)
+        total = query.count()
+        records = query.offset((p - 1) * ps).limit(ps).all()
+        items = [
+            ConfigSummary(
+                id=r.id,
+                device_id=r.device_id,
+                vendor=r.vendor,
+                parse_confidence=r.parse_confidence,
+                unmapped_count=len((r.normalized or {}).get("raw_unmapped_lines", [])),
+                created_at=r.created_at.isoformat(),
+            )
+            for r in records
+        ]
+        return {
+            "items": [item.model_dump() for item in items],
+            "total": total,
+            "page": p,
+            "page_size": ps,
+            "pages": (total + ps - 1) // ps if total > 0 else 1,
+        }
+
+    records = query.all()
     return [
         ConfigSummary(
             id=r.id,
             device_id=r.device_id,
             vendor=r.vendor,
             parse_confidence=r.parse_confidence,
-            unmapped_count=len(r.normalized.get("raw_unmapped_lines", [])),
+            unmapped_count=len((r.normalized or {}).get("raw_unmapped_lines", [])),
             created_at=r.created_at.isoformat(),
         )
         for r in records
     ]
 
 
-@router.get("/records/{config_id}")
+@router.get(
+    "/records/{config_id}",
+    responses={
+        404: {"description": "Config record not found"},
+    },
+)
 def get_record(config_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
     """Return single device record details including full normalized config."""
     record = db.get(ConfigRecord, config_id)
@@ -161,4 +206,3 @@ def get_record(config_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
         "normalized": record.normalized,
         "created_at": record.created_at.isoformat(),
     }
-

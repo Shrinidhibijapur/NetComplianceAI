@@ -7,6 +7,7 @@ import { DevicesPage } from "./components/DevicesPage";
 import { FindingsPage } from "./components/FindingsPage";
 import { TrainingPage } from "./components/TrainingPage";
 import { LearnedRulesPage } from "./components/LearnedRulesPage";
+import { AuditLogsPage } from "./components/AuditLogsPage";
 import { Landing } from "./components/Landing";
 import { BootSequence } from "./components/BootSequence";
 
@@ -62,6 +63,9 @@ function App() {
       )}
       {tab === "rules" && (
         <LearnedRulesPage refreshKey={refreshKey} />
+      )}
+      {tab === "audit" && (
+        <AuditLogsPage refreshKey={refreshKey} />
       )}
     </AppShell>
   );

@@ -13,6 +13,7 @@ const TAB_TITLES: Record<NavTab, { title: string; breadcrumb: string }> = {
   findings: { title: "Compliance Audit & Findings", breadcrumb: "Compliance / Audit & Findings" },
   training: { title: "AI Training & Learning Loop", breadcrumb: "Intelligence / AI Training" },
   rules: { title: "Active Learned Extraction Rules", breadcrumb: "Intelligence / Learned Rules" },
+  audit: { title: "Security Audit Trail", breadcrumb: "Compliance / Audit Trail" },
 };
 
 export function Topbar({ activeTab, onRefresh }: TopbarProps) {

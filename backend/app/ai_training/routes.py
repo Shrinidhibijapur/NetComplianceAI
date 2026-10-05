@@ -128,23 +128,25 @@ def label_line(
 # Phase 4: ParseRule approval
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.post("/approve", responses={422: {"description": "Invalid regex pattern"}})
+@router.post(
+    "/approve",
+    responses={
+        403: {"description": "Admin or Auditor privileges required"},
+        422: {"description": "Invalid regex pattern"},
+    },
+)
 def approve_rule(
-    payload: ApproveRuleRequest, db: Annotated[Session, Depends(get_db)]
+    payload: ApproveRuleRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
 ) -> dict:
-    """Admin approves a generalized parse rule from the Training UI.
-
-    Steps:
-    1. Validate the regex pattern.
-    2. Save a ParseRule row (active=1).
-    3. Re-normalize all existing ConfigRecords for the same vendor so findings update immediately.
-    4. Emit an AuditEvent.
-    """
-    # The regex is already validated by the Pydantic field_validator — compile once more for safety
+    """Admin or Auditor approves a generalized parse rule from the Training UI."""
     try:
         re.compile(payload.pattern)
     except re.error as exc:
         raise HTTPException(status_code=422, detail=f"Invalid regex: {exc}") from exc
+
+    actor_name = user.username if user else payload.approved_by
 
     rule = ParseRule(
         vendor=payload.vendor,
@@ -159,16 +161,17 @@ def approve_rule(
         semantic_category=payload.semantic_category,
         source="human",
         confidence=payload.confidence,
-        approved_by=payload.approved_by,
+        approved_by=actor_name,
         active=1,
     )
     db.add(rule)
 
     audit = AuditEvent(
         event_type="rule_approved",
-        actor=payload.approved_by,
+        actor=actor_name,
         subject=payload.target_field,
         config_id=None,
+        status="success",
         details={
             "vendor": payload.vendor,
             "pattern": payload.pattern,
@@ -180,7 +183,6 @@ def approve_rule(
     db.commit()
     db.refresh(rule)
 
-    # Re-normalize existing configs for this vendor (D1 regression fix)
     updated_count = _renormalize_vendor(payload.vendor)
 
     return {
@@ -200,10 +202,7 @@ def approve_rule(
 def preview_pattern(
     payload: dict, db: Annotated[Session, Depends(get_db)]
 ) -> RulePreviewResult:
-    """Preview: given a pattern and a config_id, show how many lines it would match.
-
-    Request body: {"pattern": "...", "config_id": 123}
-    """
+    """Preview: given a pattern and a config_id, show how many lines it would match."""
     pattern_str = payload.get("pattern", "")
     config_id = payload.get("config_id")
 
@@ -239,12 +238,20 @@ def preview_pattern(
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.get("/rules")
-def list_rules(db: Annotated[Session, Depends(get_db)]) -> LearnedRulesResponse:
+def list_rules(
+    db: Annotated[Session, Depends(get_db)],
+    page: int | None = None,
+    page_size: int | None = None,
+) -> LearnedRulesResponse | dict:
     """List all ParseRules (active and disabled), ordered newest-first."""
-    rows = db.query(ParseRule).order_by(ParseRule.created_at.desc()).all()
-    rules_out = []
-    for r in rows:
-        rules_out.append(
+    query = db.query(ParseRule).order_by(ParseRule.created_at.desc(), ParseRule.id.desc())
+    total = query.count()
+
+    if page is not None or page_size is not None:
+        p = max(1, page or 1)
+        ps = min(max(1, page_size or 20), 100)
+        rows = query.offset((p - 1) * ps).limit(ps).all()
+        rules_out = [
             ParseRuleOut(
                 id=r.id,
                 vendor=r.vendor,
@@ -264,13 +271,53 @@ def list_rules(db: Annotated[Session, Depends(get_db)]) -> LearnedRulesResponse:
                 active=bool(r.active),
                 created_at=r.created_at,
             )
+            for r in rows
+        ]
+        return {
+            "items": [r.model_dump(mode="json") for r in rules_out],
+            "total": total,
+            "page": p,
+            "page_size": ps,
+            "pages": (total + ps - 1) // ps if total > 0 else 1,
+        }
+
+    rows = query.all()
+    rules_out = [
+        ParseRuleOut(
+            id=r.id,
+            vendor=r.vendor,
+            platform=r.platform or "*",
+            os_range=r.os_range or "*",
+            pattern=r.pattern,
+            example_line=r.example_line,
+            target_field=r.target_field,
+            value_type=r.value_type or "string",
+            value_map=r.value_map or {},
+            static_value=r.static_value,
+            semantic_category=r.semantic_category or "",
+            source=r.source or "human",
+            confidence=r.confidence or 1.0,
+            approved_by=r.approved_by or "admin",
+            approved_at=r.approved_at,
+            active=bool(r.active),
+            created_at=r.created_at,
         )
+        for r in rows
+    ]
     return LearnedRulesResponse(rules=rules_out, total=len(rules_out))
 
 
-@router.patch("/rules/{rule_id}/disable", responses={404: {"description": "Parse rule not found"}})
+@router.patch(
+    "/rules/{rule_id}/disable",
+    responses={
+        403: {"description": "Admin or Auditor privileges required"},
+        404: {"description": "Parse rule not found"},
+    },
+)
 def disable_rule(
-    rule_id: int, db: Annotated[Session, Depends(get_db)]
+    rule_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
 ) -> dict:
     """Disable a ParseRule (soft-delete). The rule stays in the DB for audit purposes."""
     rule = db.get(ParseRule, rule_id)
@@ -283,23 +330,52 @@ def disable_rule(
     db.add(
         AuditEvent(
             event_type="rule_disabled",
-            actor="admin",
+            actor=user.username,
             subject=rule.target_field,
             config_id=None,
+            status="success",
             details={"rule_id": rule_id, "vendor": rule.vendor, "pattern": rule.pattern},
         )
     )
     db.commit()
 
-    # Re-normalize so the now-disabled rule no longer affects findings
     updated_count = _renormalize_vendor(rule.vendor)
     return {"status": "disabled", "rule_id": rule_id, "renormalized_configs": updated_count}
 
 
-@router.delete("/rules/{rule_id}", responses={404: {"description": "Parse rule not found"}})
+@router.delete(
+    "/rules/{rule_id}",
+    responses={
+        403: {"description": "Admin privileges required"},
+        404: {"description": "Parse rule not found"},
+    },
+)
 def delete_rule(
-    rule_id: int, db: Annotated[Session, Depends(get_db)]
+    rule_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(require_role(["admin"]))],
 ) -> dict:
+    """Permanently delete a ParseRule (Admin only) and re-normalize affected configs."""
+    rule = db.get(ParseRule, rule_id)
+    if rule is None:
+        raise HTTPException(status_code=404, detail=f"No parse rule with id {rule_id}")
+
+    vendor = rule.vendor
+    db.add(
+        AuditEvent(
+            event_type="rule_deleted",
+            actor=user.username,
+            subject=rule.target_field,
+            config_id=None,
+            status="success",
+            details={"rule_id": rule_id, "vendor": vendor, "pattern": rule.pattern},
+        )
+    )
+    db.delete(rule)
+    db.commit()
+
+    updated_count = _renormalize_vendor(vendor)
+    return {"status": "deleted", "rule_id": rule_id, "renormalized_configs": updated_count}
     """Permanently delete a ParseRule and re-normalize affected configs."""
     rule = db.get(ParseRule, rule_id)
     if rule is None:

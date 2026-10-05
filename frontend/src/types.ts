@@ -182,3 +182,21 @@ export interface RulePreviewResult {
   matched_lines: string[];
 }
 
+export interface AuditEntry {
+  id: number;
+  timestamp: string;
+  actor: string;
+  action: string;
+  resource: string;
+  success: boolean;
+  metadata_json: Record<string, unknown> | null;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+

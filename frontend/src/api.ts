@@ -9,12 +9,31 @@ import type {
   ReportMetadata,
   ReportJsonExport,
   FleetSummary,
+  AuditEntry,
+  PaginatedResponse,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
+export function getAuthToken(): string | null {
+  return localStorage.getItem("complianceai_token");
+}
+
+export function setAuthToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem("complianceai_token", token);
+  } else {
+    localStorage.removeItem("complianceai_token");
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, init);
+  const headers = new Headers(init?.headers || {});
+  const token = getAuthToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     const suffix = detail ? `: ${detail}` : "";
@@ -140,6 +159,39 @@ export const api = {
 
   health(): Promise<unknown> {
     return request("/health");
+  },
+
+  // ── Phase 6: Auth, Audit & Tasks ──────────────────────────────────────────
+
+  login(username: string, password: string): Promise<{ access_token: string; token_type: string; role: string; username: string }> {
+    return request("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+  },
+
+  getCurrentUser(): Promise<{ username: string; role: string; is_active: boolean }> {
+    return request("/auth/me");
+  },
+
+  getAuditLogs(
+    page = 1,
+    pageSize = 20,
+    action?: string,
+    actor?: string
+  ): Promise<PaginatedResponse<AuditEntry>> {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    if (action) params.append("action", action);
+    if (actor) params.append("actor", actor);
+    return request(`/audit/logs?${params.toString()}`);
+  },
+
+  getTask(taskId: string): Promise<{ id: string; status: string; progress: number; detail: string | null; result: unknown | null; created_at: string; updated_at: string }> {
+    return request(`/tasks/${taskId}`);
   },
 };
 
