@@ -2,8 +2,8 @@ import { SystemStatus } from "./SystemStatus";
 import type { NavTab } from "./Sidebar";
 
 interface TopbarProps {
-  activeTab: NavTab;
-  onRefresh: () => void;
+  readonly activeTab: NavTab;
+  readonly onRefresh: () => void;
 }
 
 const TAB_TITLES: Record<NavTab, { title: string; breadcrumb: string }> = {

@@ -1,7 +1,9 @@
 import type { FindingStatus } from "../../types";
 
+export type StatusBadgeValue = FindingStatus | "unmapped" | "processing" | "complete" | "failed" | "active" | "disabled" | (string & {});
+
 interface StatusBadgeProps {
-  status: FindingStatus | "unmapped" | "processing" | "complete" | "failed" | string;
+  readonly status: StatusBadgeValue;
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
@@ -20,7 +22,6 @@ export function StatusBadge({ status }: StatusBadgeProps) {
     badgeClass = "badge-unknown";
     label = "⚠ UNKNOWN";
   } else if (norm === "unmapped") {
-    badgeClass = "badge-unmapped";
     label = "⚡ UNMAPPED";
   } else if (norm === "complete" || norm === "active") {
     badgeClass = "badge-pass";

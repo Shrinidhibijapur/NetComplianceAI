@@ -144,3 +144,21 @@ def list_records(db: Annotated[Session, Depends(get_db)]) -> list[ConfigSummary]
         )
         for r in records
     ]
+
+
+@router.get("/records/{config_id}")
+def get_record(config_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
+    """Return single device record details including full normalized config."""
+    record = db.get(ConfigRecord, config_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No config record with id {config_id}")
+    return {
+        "id": record.id,
+        "device_id": record.device_id,
+        "vendor": record.vendor,
+        "raw_config": record.raw_config,
+        "parse_confidence": record.parse_confidence,
+        "normalized": record.normalized,
+        "created_at": record.created_at.isoformat(),
+    }
+

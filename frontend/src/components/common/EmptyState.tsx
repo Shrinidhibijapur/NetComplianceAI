@@ -1,9 +1,9 @@
 import React from "react";
 
 interface EmptyStateProps {
-  title: string;
-  description: string;
-  action?: React.ReactNode;
+  readonly title: string;
+  readonly description: string;
+  readonly action?: React.ReactNode;
 }
 
 export function EmptyState({ title, description, action }: EmptyStateProps) {

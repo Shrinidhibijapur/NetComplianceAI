@@ -14,8 +14,12 @@ _env = Environment(
 
 
 def render_report_html(
-    report: ComplianceReport, os_version: str | None = None, serial_number: str | None = None
+    report: ComplianceReport,
+    os_version: str | None = None,
+    serial_number: str | None = None,
+    extra: dict | None = None,
 ) -> str:
+    extra = extra or {}
     template = _env.get_template("report.html")
     return template.render(
         device_id=report.device_id,
@@ -23,6 +27,10 @@ def render_report_html(
         framework=report.framework,
         os_version=os_version,
         serial_number=serial_number,
+        hostname=extra.get("hostname"),
+        model=extra.get("model"),
+        unmapped_lines=extra.get("unmapped_lines", []),
+        learned_rules=extra.get("learned_rules", []),
         summary=report.summary,
         findings=report.findings,
         score=_score(report.summary),
@@ -70,12 +78,21 @@ def _severity_color(severity: str) -> tuple[int, int, int]:
 
 
 def render_report_pdf_fallback(
-    report: ComplianceReport, os_version: str | None = None, serial_number: str | None = None
+    report: ComplianceReport,
+    os_version: str | None = None,
+    serial_number: str | None = None,
+    extra: dict | None = None,
 ) -> bytes:
     """Pure-Python PDF renderer (no native Pango/Cairo deps) that mirrors the branded HTML
     report: colored header band, a compliance score, and card-style findings with
     status/severity badges — used wherever WeasyPrint's system libs aren't available."""
     from fpdf import FPDF
+
+    extra = extra or {}
+    hostname = extra.get("hostname")
+    model = extra.get("model")
+    unmapped_lines = extra.get("unmapped_lines", [])
+    learned_rules = extra.get("learned_rules", [])
 
     generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     score = _score(report.summary)
@@ -119,7 +136,7 @@ def render_report_pdf_fallback(
     full_w = pdf.w - pdf.l_margin - pdf.r_margin
 
     # ---- device info box ----
-    box_h = 22
+    box_h = 36  # expanded for hostname + model
     pdf.set_draw_color(*_BORDER)
     pdf.set_fill_color(*_LIGHT_BG)
     pdf.rect(left, pdf.get_y(), full_w, box_h, style="DF")
@@ -127,8 +144,10 @@ def render_report_pdf_fallback(
     fields = [
         ("Device ID", report.device_id),
         ("Vendor", report.vendor),
-        ("OS Version", os_version or "Unknown"),
-        ("Serial Number", serial_number or "Unknown"),
+        ("Hostname", hostname or "Not detected"),
+        ("Model", model or "Not detected"),
+        ("OS Version", os_version or "Not detected"),
+        ("Serial Number", serial_number or "Not detected"),
     ]
     col_w = full_w / 2
     for i, (label, value) in enumerate(fields):
@@ -185,7 +204,58 @@ def render_report_pdf_fallback(
     for finding in report.findings:
         _draw_finding_card(pdf, finding, left, full_w, content_w)
 
+    # ---- appendix: unmapped lines ----
+    if unmapped_lines:
+        pdf.ln(8)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_x(left)
+        pdf.set_text_color(20, 20, 20)
+        pdf.cell(0, 7, f"Appendix A: Unmapped Configuration Lines ({len(unmapped_lines)})", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.set_text_color(*_MUTED_TEXT)
+        pdf.multi_cell(full_w, 5, "These lines could not be mapped by the built-in parser or learned rules. Use the AI Training workflow to create parse rules for them.")
+        pdf.ln(3)
+        for line in unmapped_lines[:50]:  # cap at 50 to keep PDF manageable
+            if pdf.get_y() + 6 > pdf.page_break_trigger:
+                pdf.add_page()
+            pdf.set_x(left + 4)
+            pdf.set_font("Courier", "", 8)
+            pdf.set_text_color(60, 60, 60)
+            pdf.multi_cell(full_w - 8, 5, line)
+        if len(unmapped_lines) > 50:
+            pdf.set_x(left)
+            pdf.set_font("Helvetica", "I", 8)
+            pdf.set_text_color(*_MUTED_TEXT)
+            pdf.cell(0, 6, f"... and {len(unmapped_lines) - 50} more unmapped lines (truncated for PDF length)")
+
+    # ---- appendix: learned rules used ----
+    if learned_rules:
+        pdf.ln(8)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_x(left)
+        pdf.set_text_color(20, 20, 20)
+        pdf.cell(0, 7, f"Appendix B: AI Learned Parse Rules Applied ({len(learned_rules)})", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(2)
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.set_text_color(*_MUTED_TEXT)
+        pdf.multi_cell(full_w, 5, "These admin-approved rules were active during normalization and contributed to the compliance baseline used in this report.")
+        pdf.ln(3)
+        for rule in learned_rules:
+            if pdf.get_y() + 16 > pdf.page_break_trigger:
+                pdf.add_page()
+            pdf.set_x(left)
+            pdf.set_font("Helvetica", "B", 8.5)
+            pdf.set_text_color(*_ACCENT)
+            pdf.cell(0, 5, f"Rule #{rule.get('id')}: {rule.get('target_field', 'unknown')} (approved by {rule.get('approved_by', 'admin')})", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_x(left + 4)
+            pdf.set_font("Courier", "", 8)
+            pdf.set_text_color(60, 60, 60)
+            pdf.multi_cell(full_w - 8, 5, f"Pattern: {rule.get('pattern', 'n/a')}")
+
+    pdf.set_text_color(0, 0, 0)
     return bytes(pdf.output())
+
 
 
 def _finding_body_lines(pdf, finding: Finding, content_w: float):

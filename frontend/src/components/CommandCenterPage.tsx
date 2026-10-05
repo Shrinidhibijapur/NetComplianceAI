@@ -1,21 +1,40 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { ConfigSummary } from "../types";
+import type { ConfigSummary, Finding } from "../types";
 import { PageHeader } from "./common/PageHeader";
 import { EmptyState } from "./common/EmptyState";
 import { TechnicalValue } from "./common/TechnicalValue";
+import { PosturePanel } from "./PosturePanel";
+import { RecentFindings } from "./RecentFindings";
+import { ReportDownloadButton } from "./ReportDownloadButton";
 
 interface CommandCenterPageProps {
-  onSelectTab: (tab: "upload" | "devices" | "findings" | "training" | "rules") => void;
-  refreshKey: number;
+  readonly onSelectTab: (tab: "upload" | "devices" | "findings" | "training" | "rules") => void;
+  readonly refreshKey: number;
+}
+
+function getConfidenceColor(confidence: number): string {
+  if (confidence >= 0.8) return "var(--status-pass)";
+  if (confidence >= 0.5) return "var(--status-unknown)";
+  return "var(--status-fail)";
+}
+
+interface ExtendedFindingItem extends Finding {
+  deviceId: string;
+  vendor: string;
+  configId: number;
 }
 
 export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPageProps) {
   const [records, setRecords] = useState<ConfigSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [framework, setFramework] = useState("CIS");
+  const [failedFindings, setFailedFindings] = useState<ExtendedFindingItem[]>([]);
+  const [loadingFindings, setLoadingFindings] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
     api
       .listRecords()
       .then((data) => {
@@ -31,6 +50,43 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
       mounted = false;
     };
   }, [refreshKey]);
+
+  // Load failed findings for the top failed controls list across devices
+  useEffect(() => {
+    if (records.length === 0) {
+      setFailedFindings([]);
+      return;
+    }
+    let mounted = true;
+    setLoadingFindings(true);
+
+    // Evaluate first few devices to aggregate failed findings for recent view
+    const promises = records.slice(0, 5).map((r) =>
+      api
+        .evaluate(r.id, framework)
+        .then((report) =>
+          report.findings
+            .filter((f) => f.status === "fail")
+            .map((f) => ({ ...f, deviceId: r.device_id, vendor: r.vendor, configId: r.id }))
+        )
+        .catch(() => [])
+    );
+
+    Promise.all(promises).then((results) => {
+      if (mounted) {
+        const flattened = results.flat();
+        // Sort by severity (high first)
+        const sevRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+        flattened.sort((a, b) => (sevRank[a.severity] ?? 3) - (sevRank[b.severity] ?? 3));
+        setFailedFindings(flattened);
+        setLoadingFindings(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [records, framework]);
 
   const totalDevices = records.length;
   const avgConfidence = totalDevices
@@ -81,12 +137,22 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
         </div>
       </div>
 
+      {/* Fleet Posture Panel */}
+      <PosturePanel currentFramework={framework} onFrameworkChange={setFramework} />
+
+      {/* Action Required: Failed Controls List */}
+      <RecentFindings
+        findings={failedFindings}
+        loading={loadingFindings}
+        onViewAll={() => onSelectTab("findings")}
+      />
+
       {/* Content Layout: 2 Columns */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
         {/* Left Column: Recent Audited Devices Table */}
         <div className="data-table-wrapper" style={{ padding: "1.25rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>Recent Audited Devices</h3>
+            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)" }}>Audited Fleet Devices</h3>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => onSelectTab("devices")}>
               View All Devices →
             </button>
@@ -113,7 +179,7 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
                   <th>Parse Confidence</th>
                   <th>Unmapped Lines</th>
                   <th>Scan Time</th>
-                  <th>Action</th>
+                  <th>PDF Report</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,12 +208,7 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
                             style={{
                               width: `${Math.round(r.parse_confidence * 100)}%`,
                               height: "100%",
-                              backgroundColor:
-                                r.parse_confidence >= 0.8
-                                  ? "var(--status-pass)"
-                                  : r.parse_confidence >= 0.5
-                                  ? "var(--status-unknown)"
-                                  : "var(--status-fail)",
+                              backgroundColor: getConfidenceColor(r.parse_confidence),
                             }}
                           />
                         </div>
@@ -165,9 +226,7 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
                     </td>
                     <td style={{ fontSize: "0.8rem" }}>{new Date(r.created_at).toLocaleString()}</td>
                     <td>
-                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => onSelectTab("devices")}>
-                        Inspect
-                      </button>
+                      <ReportDownloadButton configId={r.id} deviceId={r.device_id} framework={framework} variant="compact" />
                     </td>
                   </tr>
                 ))}

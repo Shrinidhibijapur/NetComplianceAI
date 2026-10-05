@@ -323,9 +323,9 @@ function TrainingRow({
 
       {/* Step 1: Target Field Selection */}
       <div style={{ marginBottom: "1.25rem" }}>
-        <label style={{ display: "block", fontSize: "0.825rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: "0.5rem" }}>
+        <div style={{ display: "block", fontSize: "0.825rem", fontWeight: 600, color: "var(--text-primary)", marginBottom: "0.5rem" }}>
           Step 1 — Select Target Canonical Field:
-        </label>
+        </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
           {CANONICAL_KEYS.map((k) => {
             const isSelected = targetField === k;
@@ -567,7 +567,7 @@ function TrainingRow({
 
 /** Convert a literal config line into a safe starting regex by escaping special chars. */
 function escapeForPattern(line: string): string {
-  const escaped = line.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escaped = line.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   return `^${escaped}`;
 }
 

@@ -1,9 +1,9 @@
 export type NavTab = "dashboard" | "upload" | "devices" | "findings" | "training" | "rules";
 
 interface SidebarProps {
-  activeTab: NavTab;
-  onSelectTab: (tab: NavTab) => void;
-  onExit?: () => void;
+  readonly activeTab: NavTab;
+  readonly onSelectTab: (tab: NavTab) => void;
+  readonly onExit?: () => void;
 }
 
 export function Sidebar({ activeTab, onSelectTab, onExit }: SidebarProps) {

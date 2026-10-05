@@ -1,7 +1,9 @@
 import type { Severity } from "../../types";
 
+export type SeverityValue = Severity | (string & {});
+
 interface SeverityBadgeProps {
-  severity: Severity | string;
+  readonly severity: SeverityValue;
 }
 
 export function SeverityBadge({ severity }: SeverityBadgeProps) {

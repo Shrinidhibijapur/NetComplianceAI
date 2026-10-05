@@ -128,7 +128,7 @@ def label_line(
 # Phase 4: ParseRule approval
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.post("/approve", response_model=dict)
+@router.post("/approve", responses={422: {"description": "Invalid regex pattern"}})
 def approve_rule(
     payload: ApproveRuleRequest, db: Annotated[Session, Depends(get_db)]
 ) -> dict:
@@ -190,7 +190,13 @@ def approve_rule(
     }
 
 
-@router.post("/preview", response_model=RulePreviewResult)
+@router.post(
+    "/preview",
+    responses={
+        404: {"description": "Config record not found"},
+        422: {"description": "Invalid regex pattern"},
+    },
+)
 def preview_pattern(
     payload: dict, db: Annotated[Session, Depends(get_db)]
 ) -> RulePreviewResult:
@@ -232,7 +238,7 @@ def preview_pattern(
 # Phase 4: Rule management
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.get("/rules", response_model=LearnedRulesResponse)
+@router.get("/rules")
 def list_rules(db: Annotated[Session, Depends(get_db)]) -> LearnedRulesResponse:
     """List all ParseRules (active and disabled), ordered newest-first."""
     rows = db.query(ParseRule).order_by(ParseRule.created_at.desc()).all()
@@ -262,7 +268,7 @@ def list_rules(db: Annotated[Session, Depends(get_db)]) -> LearnedRulesResponse:
     return LearnedRulesResponse(rules=rules_out, total=len(rules_out))
 
 
-@router.patch("/rules/{rule_id}/disable", response_model=dict)
+@router.patch("/rules/{rule_id}/disable", responses={404: {"description": "Parse rule not found"}})
 def disable_rule(
     rule_id: int, db: Annotated[Session, Depends(get_db)]
 ) -> dict:
@@ -290,7 +296,7 @@ def disable_rule(
     return {"status": "disabled", "rule_id": rule_id, "renormalized_configs": updated_count}
 
 
-@router.delete("/rules/{rule_id}", response_model=dict)
+@router.delete("/rules/{rule_id}", responses={404: {"description": "Parse rule not found"}})
 def delete_rule(
     rule_id: int, db: Annotated[Session, Depends(get_db)]
 ) -> dict:

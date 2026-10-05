@@ -181,7 +181,7 @@ class ParseRuleOut(BaseModel):
     target_field: str
     value_type: str
     value_map: dict[str, Any]
-    static_value: Optional[Any]
+    static_value: Optional[Any] = None
     semantic_category: str
     source: str
     confidence: float

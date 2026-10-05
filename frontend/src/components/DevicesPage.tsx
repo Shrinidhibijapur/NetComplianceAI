@@ -5,6 +5,7 @@ import { ConfidenceMeter } from "./Badges";
 import { ResultsPanel } from "./ResultsPanel";
 import { PageHeader } from "./common/PageHeader";
 import { EmptyState } from "./common/EmptyState";
+import { ReportDownloadButton } from "./ReportDownloadButton";
 
 export function DevicesPage({
   refreshKey,
@@ -166,26 +167,25 @@ export function DevicesPage({
                     boxShadow: isOpen ? "0 4px 20px rgba(0,0,0,0.3)" : "none"
                   }}
                 >
-                  <div
-                    role="button"
-                    tabIndex={0}
+                  <button
+                    type="button"
                     aria-expanded={isOpen}
                     aria-label={`${r.device_id} (${r.vendor}) details`}
                     onClick={() => setExpanded(isOpen ? null : r.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        setExpanded(isOpen ? null : r.id);
-                      }
-                    }}
                     style={{
+                      width: "100%",
+                      background: "none",
+                      border: "none",
                       padding: "1.25rem 1.5rem",
                       cursor: "pointer",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
                       gap: "1.5rem",
-                      userSelect: "none"
+                      userSelect: "none",
+                      font: "inherit",
+                      color: "inherit",
+                      textAlign: "left",
                     }}
                   >
                     {/* Device Identifier & Vendor Info */}
@@ -229,7 +229,9 @@ export function DevicesPage({
                     </div>
 
                     {/* Parser Status & Action Badges */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                      <ReportDownloadButton configId={r.id} deviceId={r.device_id} framework="CIS" variant="outline" />
+
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: "0.725rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>
                           Parse Confidence
@@ -301,7 +303,7 @@ export function DevicesPage({
                         {isOpen ? "▲" : "▼"}
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Accordion Detail Area */}
                   {isOpen && (

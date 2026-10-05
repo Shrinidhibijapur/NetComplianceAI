@@ -1,6 +1,26 @@
 import { useEffect, useState } from "react";
 import { api } from "../../api";
 
+function getStatusColor(online: boolean | null): string {
+  if (online === true) {
+    return "var(--status-pass)";
+  }
+  if (online === false) {
+    return "var(--status-fail)";
+  }
+  return "var(--status-unknown)";
+}
+
+function getStatusLabel(online: boolean | null): string {
+  if (online === true) {
+    return "CONNECTED";
+  }
+  if (online === false) {
+    return "OFFLINE";
+  }
+  return "CHECKING...";
+}
+
 export function SystemStatus({ onRefresh }: { readonly onRefresh?: () => void }) {
   const [online, setOnline] = useState<boolean | null>(null);
 
@@ -19,6 +39,9 @@ export function SystemStatus({ onRefresh }: { readonly onRefresh?: () => void })
     };
   }, []);
 
+  const dotColor = getStatusColor(online);
+  const statusText = getStatusLabel(online);
+
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "1rem", fontSize: "0.8rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
@@ -27,11 +50,11 @@ export function SystemStatus({ onRefresh }: { readonly onRefresh?: () => void })
             width: "8px",
             height: "8px",
             borderRadius: "50%",
-            backgroundColor: online === true ? "var(--status-pass)" : online === false ? "var(--status-fail)" : "var(--status-unknown)",
+            backgroundColor: dotColor,
           }}
         />
         <span style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
-          API: {online === true ? "CONNECTED" : online === false ? "OFFLINE" : "CHECKING..."}
+          API: {statusText}
         </span>
       </div>
 

@@ -27,7 +27,7 @@ export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }
   }
 
   useEffect(() => {
-    loadRules();
+    void loadRules();
   }, [refreshKey]);
 
   const activeCount = useMemo(() => rules.filter((r) => r.active).length, [rules]);

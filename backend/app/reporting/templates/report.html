@@ -21,6 +21,7 @@
   .device-grid { display: flex; flex-wrap: wrap; }
   .device-grid .item { width: 50%; padding: 3px 0; font-size: 9.5pt; }
   .device-grid .item .label { color: #57606a; font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-right: 6px; }
+  .device-grid .item .na { color: #aab2ba; font-style: italic; }
 
   .score-row { display: flex; gap: 8px; margin-bottom: 20px; }
   .score-box { width: 130px; border: 1px solid #d0d7de; border-radius: 6px; text-align: center; padding: 10px 6px; }
@@ -37,24 +38,36 @@
   .summary-box .count { font-size: 20pt; font-weight: bold; display: block; }
   .summary-box .label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.03em; }
 
-  h2.findings-title { font-size: 13pt; margin: 0 0 10px; }
+  h2.section-title { font-size: 13pt; margin: 0 0 10px; border-bottom: 1px solid #d0d7de; padding-bottom: 6px; }
 
   .finding-card { border: 1px solid #d0d7de; border-left: 4px solid #57606a; border-radius: 4px; padding: 10px 12px; margin-bottom: 10px; page-break-inside: avoid; }
   .finding-card.sev-high { border-left-color: #d1332f; }
   .finding-card.sev-medium { border-left-color: #9a6700; }
   .finding-card.sev-low { border-left-color: #57606a; }
   .finding-title { font-weight: bold; font-size: 10.5pt; margin-bottom: 6px; }
+  .finding-ref { font-size: 8pt; color: #57606a; margin-bottom: 5px; }
   .badges { margin-bottom: 8px; }
   .badge { display: inline-block; color: white; font-size: 7.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; padding: 2px 7px; border-radius: 3px; margin-right: 5px; }
   .badge-pass { background: #238636; }
   .badge-fail { background: #d1332f; }
   .badge-unknown { background: #57606a; }
+  .badge-not_applicable { background: #aab2ba; }
   .badge-sev-high { background: #d1332f; }
   .badge-sev-medium { background: #9a6700; }
   .badge-sev-low { background: #57606a; }
   .meta-line { color: #444; font-size: 9pt; margin-bottom: 4px; }
+  .meta-line code { background: #f6f8fa; padding: 1px 4px; border-radius: 3px; font-size: 8.5pt; }
   .remediation-label { color: #9a6700; font-weight: bold; font-size: 8pt; text-transform: uppercase; margin-top: 4px; }
   pre.remediation { background: #f6f8fa; border-radius: 4px; padding: 6px 8px; margin: 3px 0 0; white-space: pre-wrap; font-size: 8.5pt; color: #333; }
+  .no-remediation { color: #57606a; font-size: 8.5pt; font-style: italic; margin-top: 4px; }
+
+  .appendix-section { margin-top: 24px; }
+  .appendix-section h3 { font-size: 11pt; margin-bottom: 8px; color: #0d1117; border-bottom: 1px solid #d0d7de; padding-bottom: 4px; }
+  .appendix-desc { font-size: 8.5pt; color: #57606a; margin-bottom: 8px; }
+  .unmapped-line { font-family: monospace; font-size: 8.5pt; color: #444; background: #f6f8fa; padding: 3px 6px; margin: 2px 0; border-radius: 3px; word-break: break-all; page-break-inside: avoid; }
+  .rule-row { border: 1px solid #d0d7de; border-radius: 4px; padding: 6px 10px; margin-bottom: 6px; page-break-inside: avoid; }
+  .rule-row .rule-title { font-weight: bold; font-size: 9pt; color: #0969da; }
+  .rule-row code { font-size: 8pt; color: #444; }
 </style>
 </head>
 <body>
@@ -72,15 +85,23 @@
   </div>
 
   <div class="content">
+    <!-- Device Identity -->
     <div class="device-box">
       <div class="device-grid">
         <div class="item"><span class="label">Device ID</span>{{ device_id }}</div>
         <div class="item"><span class="label">Vendor</span>{{ vendor }}</div>
-        <div class="item"><span class="label">OS Version</span>{{ os_version or "Unknown" }}</div>
-        <div class="item"><span class="label">Serial Number</span>{{ serial_number or "Unknown" }}</div>
+        <div class="item"><span class="label">Hostname</span>
+          {% if hostname %}<span>{{ hostname }}</span>{% else %}<span class="na">Not detected</span>{% endif %}
+        </div>
+        <div class="item"><span class="label">Model</span>
+          {% if model %}<span>{{ model }}</span>{% else %}<span class="na">Not detected</span>{% endif %}
+        </div>
+        <div class="item"><span class="label">OS Version</span>{{ os_version or "Not detected" }}</div>
+        <div class="item"><span class="label">Serial Number</span>{{ serial_number or "Not detected" }}</div>
       </div>
     </div>
 
+    <!-- Executive Summary -->
     <div class="score-row">
       <div class="score-box {{ 'score-pass' if score >= 80 else ('score-warn' if score >= 50 else 'score-fail') }}">
         <span class="num">{{ score }}%</span>
@@ -91,22 +112,64 @@
       <div class="summary-box summary-unknown"><span class="count">{{ summary.unknown }}</span><div class="label">Unknown</div></div>
     </div>
 
-    <h2 class="findings-title">Findings ({{ findings|length }})</h2>
+    <!-- Findings -->
+    <h2 class="section-title">Findings ({{ findings|length }})</h2>
 
     {% for f in findings %}
     <div class="finding-card sev-{{ f.severity }}">
       <div class="finding-title">{{ f.control_id }} &middot; {{ f.title }}</div>
+      {% if f.framework_reference %}
+      <div class="finding-ref">Framework Reference: {{ f.framework_reference }}</div>
+      {% endif %}
       <div class="badges">
         <span class="badge badge-{{ f.status }}">{{ f.status.upper() }}</span>
         <span class="badge badge-sev-{{ f.severity }}">{{ f.severity.upper() }}</span>
+        {% if not f.verified %}<span class="badge" style="background:#9a6700">UNVERIFIED</span>{% endif %}
       </div>
-      <div class="meta-line">Expected: {{ f.expected }} &nbsp;&nbsp; Actual: {{ f.actual if f.actual is not none else "n/a" }}</div>
-      {% if f.remediation %}
-      <div class="remediation-label">Remediation</div>
-      <pre class="remediation">{{ f.remediation }}</pre>
+      <div class="meta-line">Expected: <code>{{ f.expected }}</code> &nbsp;&nbsp; Actual: <code>{{ f.actual if f.actual is not none else "n/a" }}</code></div>
+      {% if f.canonical_key %}
+      <div class="meta-line" style="color:#57606a">Control field: <code>{{ f.canonical_key }}</code></div>
+      {% endif %}
+      {% if f.status == "fail" %}
+        {% if f.remediation and f.remediation_verified %}
+          <div class="remediation-label">Verified Remediation</div>
+          <pre class="remediation">{{ f.remediation }}</pre>
+        {% else %}
+          <div class="no-remediation">&#9888; No verified remediation available for this control.</div>
+        {% endif %}
       {% endif %}
     </div>
     {% endfor %}
+
+    <!-- Appendix A: Unmapped Lines -->
+    {% if unmapped_lines %}
+    <div class="appendix-section">
+      <h3>Appendix A: Unmapped Configuration Lines ({{ unmapped_lines|length }})</h3>
+      <p class="appendix-desc">These lines could not be mapped by the built-in parser or any active learned rules. Use the AI Training workflow to create parse rules for unrecognized syntax.</p>
+      {% for line in unmapped_lines[:50] %}
+      <div class="unmapped-line">{{ line }}</div>
+      {% endfor %}
+      {% if unmapped_lines|length > 50 %}
+      <p class="appendix-desc">... and {{ unmapped_lines|length - 50 }} more unmapped lines (truncated).</p>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Appendix B: Learned Rules -->
+    {% if learned_rules %}
+    <div class="appendix-section">
+      <h3>Appendix B: AI Learned Parse Rules Applied ({{ learned_rules|length }})</h3>
+      <p class="appendix-desc">These admin-approved rules were active during normalization and contributed to the compliance baseline used in this report.</p>
+      {% for rule in learned_rules %}
+      <div class="rule-row">
+        <div class="rule-title">Rule #{{ rule.id }} &mdash; {{ rule.target_field }}</div>
+        <div><code>{{ rule.pattern }}</code></div>
+        <div style="font-size:8pt;color:#57606a;">Approved by {{ rule.approved_by }} on {{ rule.approved_at[:10] }}{% if rule.semantic_category %} &middot; Category: {{ rule.semantic_category }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
   </div>
 </body>
 </html>

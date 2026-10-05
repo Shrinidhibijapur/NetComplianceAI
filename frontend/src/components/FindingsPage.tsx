@@ -24,6 +24,9 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+  const [vendorFilter, setVendorFilter] = useState<string>("all");
+  const [deviceFilter, setDeviceFilter] = useState<string>("all");
+  const [exportingJson, setExportingJson] = useState(false);
 
   // Selected device for full inspect panel
   const [inspectRecord, setInspectRecord] = useState<ConfigSummary | null>(null);
@@ -81,17 +84,58 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
     };
   }, [selectedFramework, refreshKey]);
 
+  const uniqueVendors = Array.from(new Set(allFindings.map((f) => f.vendor)));
+  const uniqueDevices = Array.from(new Set(allFindings.map((f) => f.device_id)));
+
   const filtered = allFindings.filter((f) => {
     if (statusFilter !== "all" && f.status !== statusFilter) return false;
     if (severityFilter !== "all" && f.severity !== severityFilter) return false;
+    if (vendorFilter !== "all" && f.vendor !== vendorFilter) return false;
+    if (deviceFilter !== "all" && f.device_id !== deviceFilter) return false;
     return true;
   });
+
+  const handleExportJson = async () => {
+    setExportingJson(true);
+    try {
+      // Pick first record or export all filtered findings as JSON
+      const firstConfigId = filtered[0]?.config_id ?? Object.keys(recordsMap)[0];
+      if (!firstConfigId) {
+        throw new Error("No findings to export");
+      }
+      const data = await api.getReportJson(Number(firstConfigId), selectedFramework);
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `compliance_findings_${selectedFramework}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Export failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+    } finally {
+      setExportingJson(false);
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       <PageHeader
         title="Audit & Compliance Findings"
         description="Inspect rule failures, expected versus actual control values, evidence line numbers, and verified remediation steps across all ingested configurations."
+        action={
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handleExportJson}
+            disabled={exportingJson || filtered.length === 0}
+          >
+            {exportingJson ? "Exporting..." : "⬇ Export JSON Findings"}
+          </button>
+        }
       />
 
       {/* Filter Toolbar */}
@@ -108,10 +152,11 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
         }}
       >
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
+          <label htmlFor="filter-framework" style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
             Framework:
           </label>
           <select
+            id="filter-framework"
             value={selectedFramework}
             onChange={(e) => setSelectedFramework(e.target.value)}
             style={{
@@ -131,10 +176,61 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
         </div>
 
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
+          <label htmlFor="filter-vendor" style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
+            Vendor:
+          </label>
+          <select
+            id="filter-vendor"
+            value={vendorFilter}
+            onChange={(e) => setVendorFilter(e.target.value)}
+            style={{
+              backgroundColor: "var(--bg-elevated)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-medium)",
+              padding: "0.4rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            <option value="all">All Vendors</option>
+            {uniqueVendors.map((v) => (
+              <option key={v} value={v}>
+                {v.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="filter-device" style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
+            Device ID:
+          </label>
+          <select
+            id="filter-device"
+            value={deviceFilter}
+            onChange={(e) => setDeviceFilter(e.target.value)}
+            style={{
+              backgroundColor: "var(--bg-elevated)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-medium)",
+              padding: "0.4rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+            }}
+          >
+            <option value="all">All Devices</option>
+            {uniqueDevices.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor="filter-status" style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
             Status:
           </label>
           <select
+            id="filter-status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{
@@ -153,10 +249,11 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
         </div>
 
         <div>
-          <label style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
+          <label htmlFor="filter-severity" style={{ fontSize: "0.75rem", color: "var(--text-muted)", display: "block", marginBottom: "0.25rem" }}>
             Severity:
           </label>
           <select
+            id="filter-severity"
             value={severityFilter}
             onChange={(e) => setSeverityFilter(e.target.value)}
             style={{
@@ -197,8 +294,8 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
                 <th>Control Title</th>
                 <th>Device ID</th>
                 <th>Vendor</th>
-                <th>Expected</th>
-                <th>Actual</th>
+                <th>Remediation</th>
+                <th>Expected / Actual</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -224,10 +321,17 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
                     {f.vendor}
                   </td>
                   <td>
-                    <TechnicalValue value={f.expected as string} />
+                    {f.remediation && f.remediation_verified ? (
+                      <span className="badge badge-pass" title={f.remediation}>VERIFIED REMEDIATION</span>
+                    ) : (
+                      <span className="badge" style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-muted)" }}>
+                        NO VERIFIED REMEDIATION
+                      </span>
+                    )}
                   </td>
-                  <td>
-                    <TechnicalValue value={f.actual as string} />
+                  <td style={{ fontSize: "0.75rem" }}>
+                    <div><span style={{ color: "var(--text-muted)" }}>Exp:</span> <TechnicalValue value={String(f.expected)} /></div>
+                    <div><span style={{ color: "var(--text-muted)" }}>Act:</span> <TechnicalValue value={String(f.actual)} /></div>
                   </td>
                   <td>
                     {recordsMap[f.config_id] && (
@@ -250,6 +354,9 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
       {/* Inspect Drawer/Modal if clicked */}
       {inspectRecord && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Close modal overlay"
           style={{
             position: "fixed",
             top: 0,
@@ -262,8 +369,13 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
             justifyContent: "flex-end",
           }}
           onClick={() => setInspectRecord(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" || e.key === "Enter") setInspectRecord(null);
+          }}
         >
           <div
+            role="dialog"
+            aria-modal="true"
             style={{
               width: "600px",
               maxWidth: "100%",
@@ -274,6 +386,7 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
               borderLeft: "1px solid var(--border-medium)",
             }}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <h2 style={{ fontSize: "1.2rem", fontWeight: 700 }}>Device Compliance Results</h2>

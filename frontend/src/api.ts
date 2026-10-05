@@ -6,6 +6,9 @@ import type {
   PendingTrainingResponse,
   LearnedRulesResponse,
   RulePreviewResult,
+  ReportMetadata,
+  ReportJsonExport,
+  FleetSummary,
 } from "./types";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -59,6 +62,22 @@ export const api = {
 
   reportPdfUrl(configId: number, framework: string): string {
     return `${BASE_URL}/reporting/${configId}/pdf?framework=${encodeURIComponent(framework)}`;
+  },
+
+  getReportMetadata(configId: number, framework: string): Promise<ReportMetadata> {
+    return request(`/reporting/${configId}/metadata?framework=${encodeURIComponent(framework)}`);
+  },
+
+  getReportJson(configId: number, framework: string): Promise<ReportJsonExport> {
+    return request(`/reporting/${configId}/json?framework=${encodeURIComponent(framework)}`);
+  },
+
+  getFleetSummary(framework: string): Promise<FleetSummary> {
+    return request(`/reporting/fleet/summary?framework=${encodeURIComponent(framework)}`);
+  },
+
+  getDeviceRecord(configId: number): Promise<Record<string, unknown>> {
+    return request(`/ingest/records/${configId}`);
   },
 
   pendingTraining(configId: number): Promise<PendingTrainingResponse> {

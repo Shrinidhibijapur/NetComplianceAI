@@ -25,7 +25,7 @@ from typing import Any
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Value coercion
+# Value coercion & Rule filtering
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _coerce(raw: str, value_type: str, value_map: dict) -> Any:
@@ -47,6 +47,49 @@ def _coerce(raw: str, value_type: str, value_map: dict) -> Any:
     return raw.strip()
 
 
+def _filter_rules(rules: list, vendor: str) -> list:
+    """Return active rules applicable to the given vendor."""
+    if not rules:
+        return []
+    return [
+        r for r in rules
+        if getattr(r, "active", 1) and (r.vendor == "*" or r.vendor == vendor)
+    ]
+
+
+def _extract_rule_value(rule: Any, match: re.Match, compiled: re.Pattern) -> Any:
+    """Extract and coerce value from regex match or static_value."""
+    if rule.static_value is not None:
+        return rule.static_value
+
+    try:
+        captured = match.group(1) if compiled.groups >= 1 else ""
+    except IndexError:
+        captured = ""
+
+    if captured:
+        return _coerce(captured, rule.value_type or "string", rule.value_map or {})
+    return True
+
+
+def _match_single_rule(rule: Any, raw_config: str, lines: list[str]) -> tuple[Any, str, int] | None:
+    """Match a single rule against raw_config. Return (value, line_text, line_no) or None."""
+    try:
+        compiled = re.compile(rule.pattern, re.MULTILINE)
+    except re.error:
+        return None
+
+    match = compiled.search(raw_config)
+    if not match:
+        return None
+
+    line_no = raw_config.count("\n", 0, match.start())
+    line_text = lines[line_no] if line_no < len(lines) else ""
+    value = _extract_rule_value(rule, match, compiled)
+
+    return value, line_text.strip(), line_no + 1
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Core application logic
 # ─────────────────────────────────────────────────────────────────────────────
@@ -59,81 +102,35 @@ def apply_parse_rules(
     controls: dict[str, Any],
     raw_unmapped_lines: list[str],
 ) -> tuple[dict[str, Any], list[str]]:
-    """Apply approved ParseRules and return updated (controls, raw_unmapped_lines).
-
-    Args:
-        rules:               Active ParseRule ORM rows from the DB.
-        vendor:              The vendor string of the config being normalized.
-        lines:               All lines of the config (splitlines).
-        raw_config:          The full raw config text.
-        controls:            Controls dict already populated by the profile engine.
-        raw_unmapped_lines:  Lines the profile engine couldn't match.
-
-    Returns:
-        (controls, remaining_unmapped_lines) — both potentially reduced.
-    """
-    if not rules:
-        return controls, raw_unmapped_lines
-
-    # Filter to rules that apply to this vendor
-    applicable = [
-        r for r in rules
-        if r.active and (r.vendor == "*" or r.vendor == vendor)
-    ]
+    """Apply approved ParseRules and return updated (controls, raw_unmapped_lines)."""
+    applicable = _filter_rules(rules, vendor)
     if not applicable:
         return controls, raw_unmapped_lines
 
     evidence: dict = controls.get("_evidence", {})
-    still_unmapped: list[str] = []
-    matched_fields_by_line: dict[str, str] = {}  # line_text -> target_field
+    matched_lines_set: set[str] = set()
 
     for rule in applicable:
         target = rule.target_field
         if target in controls:
-            # Already extracted by profile — skip to avoid overwriting authoritative data
-            continue
-        try:
-            compiled = re.compile(rule.pattern, re.MULTILINE)
-        except re.error:
             continue
 
-        for m in compiled.finditer(raw_config):
-            line_no = raw_config.count("\n", 0, m.start())
-            line_text = lines[line_no] if line_no < len(lines) else ""
+        result = _match_single_rule(rule, raw_config, lines)
+        if result is None:
+            continue
 
-            # Determine value
-            if rule.static_value is not None:
-                value = rule.static_value
-            else:
-                try:
-                    captured = m.group(1) if compiled.groups >= 1 else ""
-                except IndexError:
-                    captured = ""
-                if captured:
-                    value = _coerce(
-                        captured,
-                        rule.value_type or "string",
-                        rule.value_map or {},
-                    )
-                else:
-                    value = True  # pattern presence
-
-            controls[target] = value
-            matched_fields_by_line[line_text.strip()] = target
-            evidence[target] = {
-                "line_no": line_no + 1,
-                "line_text": line_text.strip(),
-                "rule_source": "learned",
-                "rule_id": rule.id,
-            }
-            break  # first match wins per rule
+        value, line_text, line_num = result
+        controls[target] = value
+        matched_lines_set.add(line_text)
+        evidence[target] = {
+            "line_no": line_num,
+            "line_text": line_text,
+            "rule_source": "learned",
+            "rule_id": rule.id,
+        }
 
     if evidence:
         controls["_evidence"] = evidence
 
-    # Rebuild unmapped list: remove lines that a learned rule just matched
-    for line in raw_unmapped_lines:
-        if line not in matched_fields_by_line:
-            still_unmapped.append(line)
-
+    still_unmapped = [line for line in raw_unmapped_lines if line not in matched_lines_set]
     return controls, still_unmapped

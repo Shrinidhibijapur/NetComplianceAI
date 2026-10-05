@@ -4,11 +4,11 @@ import { Topbar } from "../components/layout/Topbar";
 import { Toaster } from "../components/Toaster";
 
 interface AppShellProps {
-  activeTab: NavTab;
-  onSelectTab: (tab: NavTab) => void;
-  onRefresh: () => void;
-  onExit?: () => void;
-  children: React.ReactNode;
+  readonly activeTab: NavTab;
+  readonly onSelectTab: (tab: NavTab) => void;
+  readonly onRefresh: () => void;
+  readonly onExit?: () => void;
+  readonly children: React.ReactNode;
 }
 
 export function AppShell({ activeTab, onSelectTab, onRefresh, onExit, children }: AppShellProps) {

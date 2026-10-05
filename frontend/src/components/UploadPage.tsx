@@ -9,6 +9,8 @@ interface BulkItem {
   file: File;
   vendor: string;
   deviceId: string;
+  status?: "queued" | "processing" | "complete" | "failed";
+  error?: string;
 }
 
 export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) {
@@ -43,7 +45,7 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
     } else {
       setItems((prev) => [
         ...prev,
-        { file: sampleAsFile(sample), vendor: sample.vendor, deviceId: sample.deviceId },
+        { file: sampleAsFile(sample), vendor: sample.vendor, deviceId: sample.deviceId, status: "queued" },
       ]);
     }
   }
@@ -54,6 +56,7 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
       file: f,
       vendor: AUTO_VENDOR,
       deviceId: f.name.replace(/\.[^.]+$/, ""),
+      status: "queued",
     }));
     setItems((prev) => [...prev, ...additions]);
   }
@@ -88,23 +91,36 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
     }
     setBusy(true);
     setError(null);
+    setItems((prev) => prev.map((item) => ({ ...item, status: "processing" })));
     try {
       const results = await api.uploadBulk(
         items.map((i) => ({ file: i.file, vendor: i.vendor, deviceId: i.deviceId })),
       );
+
+      const resultMap = new Map(results.map((r) => [`${r.filename}_${r.device_id}`, r]));
+
+      setItems((prev) =>
+        prev.map((item) => {
+          const res = resultMap.get(`${item.file.name}_${item.deviceId}`);
+          if (res?.status === "ok") {
+            return { ...item, status: "complete" };
+          }
+          return { ...item, status: "failed", error: res?.error ?? "Ingestion failed" };
+        })
+      );
+
       const failed = results.filter((r) => r.status === "error");
       const ok = results.length - failed.length;
       if (failed.length === 0) {
-        toast(`Ingested ${ok} device(s) in this batch.`, "success");
-        setItems([]);
+        toast(`Successfully ingested all ${ok} device(s) in batch!`, "success");
       } else {
         toast(`Ingested ${ok} device(s); ${failed.length} failed.`, "error");
         setError(failed.map((r) => `${r.filename}: ${r.error}`).join(" | "));
-        setItems((prev) => prev.filter((i) => failed.some((f) => f.filename === i.file.name && f.device_id === i.deviceId)));
       }
       if (ok > 0) onUploaded();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setItems((prev) => prev.map((item) => ({ ...item, status: "failed", error: "Processing failed" })));
     } finally {
       setBusy(false);
     }
@@ -303,7 +319,7 @@ function SingleUploadCard({
       {/* Device ID and Vendor Options */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.25rem" }}>
         <div>
-          <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
+          <label htmlFor="upload-device-id" style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
             Device Identifier:
           </label>
           <input
@@ -324,9 +340,9 @@ function SingleUploadCard({
         </div>
 
         <div>
-          <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
+          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
             Vendor Profile (Optional Override):
-          </label>
+          </div>
           <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
             <button
               type="button"
@@ -453,6 +469,7 @@ function BulkUploadCard({
           <table className="data-table">
             <thead>
               <tr>
+                <th>Status</th>
                 <th>File Name</th>
                 <th>Device ID</th>
                 <th>Vendor Profile</th>
@@ -462,6 +479,19 @@ function BulkUploadCard({
             <tbody>
               {items.map((item, idx) => (
                 <tr key={`${item.file.name}-${idx}`}>
+                  <td>
+                    {item.status === "complete" ? (
+                      <span className="badge badge-pass">✓ COMPLETE</span>
+                    ) : item.status === "failed" ? (
+                      <span className="badge badge-fail" title={item.error ?? "Failed"}>✕ FAILED</span>
+                    ) : item.status === "processing" ? (
+                      <span className="badge badge-unknown animate-pulse">PROCESSING...</span>
+                    ) : (
+                      <span className="badge" style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-muted)" }}>
+                        QUEUED
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <TechnicalValue value={item.file.name} />
                   </td>

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 interface TechnicalValueProps {
-  value: ReactNode;
+  readonly value: ReactNode;
 }
 
 export function TechnicalValue({ value }: TechnicalValueProps) {
