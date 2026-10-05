@@ -20,7 +20,7 @@ export const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
 }) => {
   const [downloading, setDownloading] = useState(false);
 
-  const handleDownload = async (e: React.MouseEvent) => {
+  const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     setDownloading(true);
     try {
@@ -31,7 +31,7 @@ export const ReportDownloadButton: React.FC<ReportDownloadButtonProps> = ({
       a.download = `${deviceId}_${framework}_audit_report.pdf`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       toast(`Downloading PDF report for ${deviceId} (${framework})`, "success");
     } catch (err) {
       toast(`Failed to download report: ${err instanceof Error ? err.message : "Unknown error"}`, "error");

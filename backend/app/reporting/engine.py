@@ -77,6 +77,123 @@ def _severity_color(severity: str) -> tuple[int, int, int]:
     return {"high": _DANGER, "medium": _WARN, "low": _MUTED_TEXT}.get(severity, _MUTED_TEXT)
 
 
+NOT_DETECTED = "Not detected"
+
+
+def _draw_device_info_box(pdf, report: ComplianceReport, hostname: str | None, model: str | None, os_version: str | None, serial_number: str | None, left: float, full_w: float) -> None:
+    box_h = 36
+    pdf.set_draw_color(*_BORDER)
+    pdf.set_fill_color(*_LIGHT_BG)
+    pdf.rect(left, pdf.get_y(), full_w, box_h, style="DF")
+    info_y = pdf.get_y() + 4
+    fields = [
+        ("Device ID", report.device_id),
+        ("Vendor", report.vendor),
+        ("Hostname", hostname or NOT_DETECTED),
+        ("Model", model or NOT_DETECTED),
+        ("OS Version", os_version or NOT_DETECTED),
+        ("Serial Number", serial_number or NOT_DETECTED),
+    ]
+    col_w = full_w / 2
+    for i, (label, value) in enumerate(fields):
+        col = i % 2
+        row = i // 2
+        pdf.set_xy(left + 6 + col * col_w, info_y + row * 7)
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_text_color(*_MUTED_TEXT)
+        pdf.cell(28, 5, label.upper())
+        pdf.set_font("Helvetica", "", 9.5)
+        pdf.set_text_color(20, 20, 20)
+        pdf.cell(col_w - 34, 5, str(value))
+    pdf.set_y(info_y + box_h - 2)
+    pdf.ln(10)
+
+
+def _draw_score_and_summary_row(pdf, report: ComplianceReport, score: int, left: float, full_w: float) -> None:
+    row_y = pdf.get_y()
+    score_w = 42
+    pdf.set_draw_color(*_BORDER)
+    pdf.rect(left, row_y, score_w, 26, style="D")
+    pdf.set_xy(left, row_y + 4)
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_text_color(*_score_color(score))
+    pdf.cell(score_w, 10, f"{score}%", align="C")
+    pdf.set_xy(left, row_y + 15)
+    pdf.set_font("Helvetica", "", 8)
+    pdf.set_text_color(*_MUTED_TEXT)
+    pdf.cell(score_w, 5, "COMPLIANCE SCORE", align="C")
+
+    stats = [("Pass", report.summary.get("pass", 0), _OK), ("Fail", report.summary.get("fail", 0), _DANGER),
+              ("Unknown", report.summary.get("unknown", 0), _MUTED_TEXT)]
+    stat_w = (full_w - score_w - 8) / 3
+    for i, (label, count, color) in enumerate(stats):
+        x = left + score_w + 8 + i * (stat_w + 4)
+        pdf.set_fill_color(*color)
+        pdf.rect(x, row_y, stat_w, 26, style="F")
+        pdf.set_xy(x, row_y + 4)
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(stat_w, 10, str(count), align="C")
+        pdf.set_xy(x, row_y + 15)
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.cell(stat_w, 5, label.upper(), align="C")
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_y(row_y + 26 + 10)
+
+
+def _draw_unmapped_appendix(pdf, unmapped_lines: list[str], left: float, full_w: float) -> None:
+    if not unmapped_lines:
+        return
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_x(left)
+    pdf.set_text_color(20, 20, 20)
+    pdf.cell(0, 7, f"Appendix A: Unmapped Configuration Lines ({len(unmapped_lines)})", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "", 8.5)
+    pdf.set_text_color(*_MUTED_TEXT)
+    pdf.multi_cell(full_w, 5, "These lines could not be mapped by the built-in parser or learned rules. Use the AI Training workflow to create parse rules for them.")
+    pdf.ln(3)
+    for line in unmapped_lines[:50]:
+        if pdf.get_y() + 6 > pdf.page_break_trigger:
+            pdf.add_page()
+        pdf.set_x(left + 4)
+        pdf.set_font("Courier", "", 8)
+        pdf.set_text_color(60, 60, 60)
+        pdf.multi_cell(full_w - 8, 5, line)
+    if len(unmapped_lines) > 50:
+        pdf.set_x(left)
+        pdf.set_font("Helvetica", "I", 8)
+        pdf.set_text_color(*_MUTED_TEXT)
+        pdf.cell(0, 6, f"... and {len(unmapped_lines) - 50} more unmapped lines (truncated for PDF length)")
+
+
+def _draw_learned_rules_appendix(pdf, learned_rules: list[dict], left: float, full_w: float) -> None:
+    if not learned_rules:
+        return
+    pdf.ln(8)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_x(left)
+    pdf.set_text_color(20, 20, 20)
+    pdf.cell(0, 7, f"Appendix B: AI Learned Parse Rules Applied ({len(learned_rules)})", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "", 8.5)
+    pdf.set_text_color(*_MUTED_TEXT)
+    pdf.multi_cell(full_w, 5, "These admin-approved rules were active during normalization and contributed to the compliance baseline used in this report.")
+    pdf.ln(3)
+    for rule in learned_rules:
+        if pdf.get_y() + 16 > pdf.page_break_trigger:
+            pdf.add_page()
+        pdf.set_x(left)
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_text_color(*_ACCENT)
+        pdf.cell(0, 5, f"Rule #{rule.get('id')}: {rule.get('target_field', 'unknown')} (approved by {rule.get('approved_by', 'admin')})", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_x(left + 4)
+        pdf.set_font("Courier", "", 8)
+        pdf.set_text_color(60, 60, 60)
+        pdf.multi_cell(full_w - 8, 5, f"Pattern: {rule.get('pattern', 'n/a')}")
+
+
 def render_report_pdf_fallback(
     report: ComplianceReport,
     os_version: str | None = None,
@@ -135,66 +252,9 @@ def render_report_pdf_fallback(
     left = pdf.l_margin
     full_w = pdf.w - pdf.l_margin - pdf.r_margin
 
-    # ---- device info box ----
-    box_h = 36  # expanded for hostname + model
-    pdf.set_draw_color(*_BORDER)
-    pdf.set_fill_color(*_LIGHT_BG)
-    pdf.rect(left, pdf.get_y(), full_w, box_h, style="DF")
-    info_y = pdf.get_y() + 4
-    fields = [
-        ("Device ID", report.device_id),
-        ("Vendor", report.vendor),
-        ("Hostname", hostname or "Not detected"),
-        ("Model", model or "Not detected"),
-        ("OS Version", os_version or "Not detected"),
-        ("Serial Number", serial_number or "Not detected"),
-    ]
-    col_w = full_w / 2
-    for i, (label, value) in enumerate(fields):
-        col = i % 2
-        row = i // 2
-        pdf.set_xy(left + 6 + col * col_w, info_y + row * 7)
-        pdf.set_font("Helvetica", "B", 8.5)
-        pdf.set_text_color(*_MUTED_TEXT)
-        pdf.cell(28, 5, label.upper())
-        pdf.set_font("Helvetica", "", 9.5)
-        pdf.set_text_color(20, 20, 20)
-        pdf.cell(col_w - 34, 5, str(value))
-    pdf.set_y(info_y + box_h - 2)
-    pdf.ln(10)
+    _draw_device_info_box(pdf, report, hostname, model, os_version, serial_number, left, full_w)
+    _draw_score_and_summary_row(pdf, report, score, left, full_w)
 
-    # ---- score + summary row ----
-    row_y = pdf.get_y()
-    score_w = 42
-    pdf.set_draw_color(*_BORDER)
-    pdf.rect(left, row_y, score_w, 26, style="D")
-    pdf.set_xy(left, row_y + 4)
-    pdf.set_font("Helvetica", "B", 20)
-    pdf.set_text_color(*_score_color(score))
-    pdf.cell(score_w, 10, f"{score}%", align="C")
-    pdf.set_xy(left, row_y + 15)
-    pdf.set_font("Helvetica", "", 8)
-    pdf.set_text_color(*_MUTED_TEXT)
-    pdf.cell(score_w, 5, "COMPLIANCE SCORE", align="C")
-
-    stats = [("Pass", report.summary.get("pass", 0), _OK), ("Fail", report.summary.get("fail", 0), _DANGER),
-              ("Unknown", report.summary.get("unknown", 0), _MUTED_TEXT)]
-    stat_w = (full_w - score_w - 8) / 3
-    for i, (label, count, color) in enumerate(stats):
-        x = left + score_w + 8 + i * (stat_w + 4)
-        pdf.set_fill_color(*color)
-        pdf.rect(x, row_y, stat_w, 26, style="F")
-        pdf.set_xy(x, row_y + 4)
-        pdf.set_font("Helvetica", "B", 18)
-        pdf.set_text_color(255, 255, 255)
-        pdf.cell(stat_w, 10, str(count), align="C")
-        pdf.set_xy(x, row_y + 15)
-        pdf.set_font("Helvetica", "", 8.5)
-        pdf.cell(stat_w, 5, label.upper(), align="C")
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_y(row_y + 26 + 10)
-
-    # ---- findings ----
     pdf.set_font("Helvetica", "B", 12)
     pdf.set_x(left)
     pdf.cell(0, 7, f"Findings ({len(report.findings)})", new_x="LMARGIN", new_y="NEXT")
@@ -204,54 +264,8 @@ def render_report_pdf_fallback(
     for finding in report.findings:
         _draw_finding_card(pdf, finding, left, full_w, content_w)
 
-    # ---- appendix: unmapped lines ----
-    if unmapped_lines:
-        pdf.ln(8)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.set_x(left)
-        pdf.set_text_color(20, 20, 20)
-        pdf.cell(0, 7, f"Appendix A: Unmapped Configuration Lines ({len(unmapped_lines)})", new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(2)
-        pdf.set_font("Helvetica", "", 8.5)
-        pdf.set_text_color(*_MUTED_TEXT)
-        pdf.multi_cell(full_w, 5, "These lines could not be mapped by the built-in parser or learned rules. Use the AI Training workflow to create parse rules for them.")
-        pdf.ln(3)
-        for line in unmapped_lines[:50]:  # cap at 50 to keep PDF manageable
-            if pdf.get_y() + 6 > pdf.page_break_trigger:
-                pdf.add_page()
-            pdf.set_x(left + 4)
-            pdf.set_font("Courier", "", 8)
-            pdf.set_text_color(60, 60, 60)
-            pdf.multi_cell(full_w - 8, 5, line)
-        if len(unmapped_lines) > 50:
-            pdf.set_x(left)
-            pdf.set_font("Helvetica", "I", 8)
-            pdf.set_text_color(*_MUTED_TEXT)
-            pdf.cell(0, 6, f"... and {len(unmapped_lines) - 50} more unmapped lines (truncated for PDF length)")
-
-    # ---- appendix: learned rules used ----
-    if learned_rules:
-        pdf.ln(8)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.set_x(left)
-        pdf.set_text_color(20, 20, 20)
-        pdf.cell(0, 7, f"Appendix B: AI Learned Parse Rules Applied ({len(learned_rules)})", new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(2)
-        pdf.set_font("Helvetica", "", 8.5)
-        pdf.set_text_color(*_MUTED_TEXT)
-        pdf.multi_cell(full_w, 5, "These admin-approved rules were active during normalization and contributed to the compliance baseline used in this report.")
-        pdf.ln(3)
-        for rule in learned_rules:
-            if pdf.get_y() + 16 > pdf.page_break_trigger:
-                pdf.add_page()
-            pdf.set_x(left)
-            pdf.set_font("Helvetica", "B", 8.5)
-            pdf.set_text_color(*_ACCENT)
-            pdf.cell(0, 5, f"Rule #{rule.get('id')}: {rule.get('target_field', 'unknown')} (approved by {rule.get('approved_by', 'admin')})", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_x(left + 4)
-            pdf.set_font("Courier", "", 8)
-            pdf.set_text_color(60, 60, 60)
-            pdf.multi_cell(full_w - 8, 5, f"Pattern: {rule.get('pattern', 'n/a')}")
+    _draw_unmapped_appendix(pdf, unmapped_lines, left, full_w)
+    _draw_learned_rules_appendix(pdf, learned_rules, left, full_w)
 
     pdf.set_text_color(0, 0, 0)
     return bytes(pdf.output())

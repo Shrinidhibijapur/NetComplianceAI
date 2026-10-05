@@ -28,7 +28,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, requests_per_minute: int = 120, login_per_minute: int = 10):
         super().__init__(app)
         self.rpm = requests_per_minute
-        self.login_rpm = login_login = login_per_minute
+        self.login_rpm = login_per_minute
         self.client_hits: dict[str, list[float]] = defaultdict(list)
         self.login_hits: dict[str, list[float]] = defaultdict(list)
         self.enabled = os.environ.get("RATE_LIMIT_ENABLED", "true").lower() in ("true", "1", "yes")

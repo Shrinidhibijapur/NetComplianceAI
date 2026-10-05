@@ -190,7 +190,7 @@ export const api = {
     return request(`/audit/logs?${params.toString()}`);
   },
 
-  getTask(taskId: string): Promise<{ id: string; status: string; progress: number; detail: string | null; result: unknown | null; created_at: string; updated_at: string }> {
+  getTask(taskId: string): Promise<{ id: string; status: string; progress: number; detail: string | null; result: unknown; created_at: string; updated_at: string }> {
     return request(`/tasks/${taskId}`);
   },
 };

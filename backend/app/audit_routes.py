@@ -24,7 +24,6 @@ class AuditEventOut(BaseModel):
 
 @router.get(
     "/logs",
-    response_model=PaginatedResponse[AuditEventOut],
     responses={
         403: {"description": "Admin or Auditor privileges required"},
     },

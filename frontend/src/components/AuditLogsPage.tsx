@@ -32,6 +32,97 @@ export function AuditLogsPage({ refreshKey }: { readonly refreshKey?: number }) 
     fetchLogs(page, filterAction);
   }, [page, filterAction, refreshKey]);
 
+  let tableBodyContent: React.ReactNode;
+  if (loading) {
+    tableBodyContent = (
+      <tr>
+        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+          Loading security audit trail...
+        </td>
+      </tr>
+    );
+  } else if (logs.length === 0) {
+    tableBodyContent = (
+      <tr>
+        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+          No security audit events recorded.
+        </td>
+      </tr>
+    );
+  } else {
+    tableBodyContent = logs.map((entry) => (
+      <tr
+        key={entry.id}
+        style={{
+          borderBottom: "1px solid var(--border-subtle)",
+          transition: "background-color 0.15s ease",
+        }}
+      >
+        <td
+          style={{
+            padding: "0.75rem 1rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.78rem",
+            color: "var(--text-muted)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {new Date(entry.timestamp).toLocaleString()}
+        </td>
+        <td style={{ padding: "0.75rem 1rem", fontWeight: 600, color: "var(--accent-primary)" }}>
+          {entry.actor}
+        </td>
+        <td style={{ padding: "0.75rem 1rem", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
+          <span
+            style={{
+              display: "inline-block",
+              padding: "0.15rem 0.45rem",
+              borderRadius: "var(--radius-sm)",
+              backgroundColor: "var(--accent-dim)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-subtle)",
+            }}
+          >
+            {entry.action}
+          </span>
+        </td>
+        <td style={{ padding: "0.75rem 1rem", color: "var(--text-secondary)" }}>
+          {entry.resource}
+        </td>
+        <td style={{ padding: "0.75rem 1rem" }}>
+          <span
+            style={{
+              padding: "0.15rem 0.45rem",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              backgroundColor: entry.success ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
+              color: entry.success ? "var(--status-pass)" : "var(--status-fail)",
+              border: `1px solid ${entry.success ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+            }}
+          >
+            {entry.success ? "SUCCESS" : "FAILURE"}
+          </span>
+        </td>
+        <td
+          style={{
+            padding: "0.75rem 1rem",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.72rem",
+            color: "var(--text-muted)",
+            maxWidth: "240px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+          title={entry.metadata_json ? JSON.stringify(entry.metadata_json) : "-"}
+        >
+          {entry.metadata_json ? JSON.stringify(entry.metadata_json) : "-"}
+        </td>
+      </tr>
+    ));
+  }
+
   return (
     <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       {/* Header Panel */}
@@ -109,91 +200,7 @@ export function AuditLogsPage({ refreshKey }: { readonly refreshKey?: number }) 
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                  Loading security audit trail...
-                </td>
-              </tr>
-            ) : logs.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                  No security audit events recorded.
-                </td>
-              </tr>
-            ) : (
-              logs.map((entry) => (
-                <tr
-                  key={entry.id}
-                  style={{
-                    borderBottom: "1px solid var(--border-subtle)",
-                    transition: "background-color 0.15s ease",
-                  }}
-                >
-                  <td
-                    style={{
-                      padding: "0.75rem 1rem",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.78rem",
-                      color: "var(--text-muted)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {new Date(entry.timestamp).toLocaleString()}
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem", fontWeight: 600, color: "var(--accent-primary)" }}>
-                    {entry.actor}
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "0.15rem 0.45rem",
-                        borderRadius: "var(--radius-sm)",
-                        backgroundColor: "var(--accent-dim)",
-                        color: "var(--text-primary)",
-                        border: "1px solid var(--border-subtle)",
-                      }}
-                    >
-                      {entry.action}
-                    </span>
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem", color: "var(--text-secondary)" }}>
-                    {entry.resource}
-                  </td>
-                  <td style={{ padding: "0.75rem 1rem" }}>
-                    <span
-                      style={{
-                        padding: "0.15rem 0.45rem",
-                        borderRadius: "var(--radius-sm)",
-                        fontSize: "0.72rem",
-                        fontWeight: 700,
-                        backgroundColor: entry.success ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-                        color: entry.success ? "var(--status-pass)" : "var(--status-fail)",
-                        border: `1px solid ${entry.success ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-                      }}
-                    >
-                      {entry.success ? "SUCCESS" : "FAILURE"}
-                    </span>
-                  </td>
-                  <td
-                    style={{
-                      padding: "0.75rem 1rem",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.72rem",
-                      color: "var(--text-muted)",
-                      maxWidth: "240px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={entry.metadata_json ? JSON.stringify(entry.metadata_json) : "-"}
-                  >
-                    {entry.metadata_json ? JSON.stringify(entry.metadata_json) : "-"}
-                  </td>
-                </tr>
-              ))
-            )}
+            {tableBodyContent}
           </tbody>
         </table>
 

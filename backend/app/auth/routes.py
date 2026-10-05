@@ -42,7 +42,6 @@ class CreateUserRequest(BaseModel):
 
 @router.post(
     "/login",
-    response_model=LoginResponse,
     responses={
         401: {"description": "Invalid credentials or inactive account"},
         422: {"description": "Validation error"},
@@ -99,7 +98,7 @@ def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> Log
     )
 
 
-@router.get("/me", response_model=UserOut)
+@router.get("/me")
 def get_me(user: Annotated[User, Depends(get_current_user)]) -> UserOut:
     """Return profile details of the currently authenticated user."""
     created_str = user.created_at.isoformat() if user.created_at else ""
@@ -124,7 +123,7 @@ def logout(
     return {"status": "logged_out"}
 
 
-@router.get("/users", response_model=list[UserOut])
+@router.get("/users")
 def list_users(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[User, Depends(require_role(["admin"]))],
@@ -146,7 +145,6 @@ def list_users(
 
 @router.post(
     "/users",
-    response_model=UserOut,
     responses={
         400: {"description": "Username already exists"},
         403: {"description": "Admin privileges required"},

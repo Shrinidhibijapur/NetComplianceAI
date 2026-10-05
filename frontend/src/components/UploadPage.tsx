@@ -13,6 +13,23 @@ interface BulkItem {
   error?: string;
 }
 
+function renderItemStatusBadge(status?: string, error?: string) {
+  if (status === "complete") {
+    return <span className="badge badge-pass">✓ COMPLETE</span>;
+  }
+  if (status === "failed") {
+    return <span className="badge badge-fail" title={error ?? "Failed"}>✕ FAILED</span>;
+  }
+  if (status === "processing") {
+    return <span className="badge badge-unknown animate-pulse">PROCESSING...</span>;
+  }
+  return (
+    <span className="badge" style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-muted)" }}>
+      QUEUED
+    </span>
+  );
+}
+
 export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) {
   const [mode, setMode] = useState<"single" | "bulk">("single");
 
@@ -479,19 +496,7 @@ function BulkUploadCard({
             <tbody>
               {items.map((item, idx) => (
                 <tr key={`${item.file.name}-${idx}`}>
-                  <td>
-                    {item.status === "complete" ? (
-                      <span className="badge badge-pass">✓ COMPLETE</span>
-                    ) : item.status === "failed" ? (
-                      <span className="badge badge-fail" title={item.error ?? "Failed"}>✕ FAILED</span>
-                    ) : item.status === "processing" ? (
-                      <span className="badge badge-unknown animate-pulse">PROCESSING...</span>
-                    ) : (
-                      <span className="badge" style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-muted)" }}>
-                        QUEUED
-                      </span>
-                    )}
-                  </td>
+                  <td>{renderItemStatusBadge(item.status, item.error)}</td>
                   <td>
                     <TechnicalValue value={item.file.name} />
                   </td>

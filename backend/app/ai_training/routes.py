@@ -139,7 +139,7 @@ def label_line(
 def approve_rule(
     payload: ApproveRuleRequest,
     db: Annotated[Session, Depends(get_db)],
-    user: User = Depends(require_role(["admin", "auditor"])),
+    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
 ) -> dict:
     """Admin or Auditor approves a generalized parse rule from the Training UI."""
     try:
@@ -238,6 +238,28 @@ def preview_pattern(
 # Phase 4: Rule management
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _to_parse_rule_out(r: ParseRule) -> ParseRuleOut:
+    return ParseRuleOut(
+        id=r.id,
+        vendor=r.vendor,
+        platform=r.platform or "*",
+        os_range=r.os_range or "*",
+        pattern=r.pattern,
+        example_line=r.example_line,
+        target_field=r.target_field,
+        value_type=r.value_type or "string",
+        value_map=r.value_map or {},
+        static_value=r.static_value,
+        semantic_category=r.semantic_category or "",
+        source=r.source or "human",
+        confidence=r.confidence or 1.0,
+        approved_by=r.approved_by or "admin",
+        approved_at=r.approved_at,
+        active=bool(r.active),
+        created_at=r.created_at,
+    )
+
+
 @router.get("/rules")
 def list_rules(
     db: Annotated[Session, Depends(get_db)],
@@ -252,28 +274,7 @@ def list_rules(
         p = max(1, page or 1)
         ps = min(max(1, page_size or 20), 100)
         rows = query.offset((p - 1) * ps).limit(ps).all()
-        rules_out = [
-            ParseRuleOut(
-                id=r.id,
-                vendor=r.vendor,
-                platform=r.platform or "*",
-                os_range=r.os_range or "*",
-                pattern=r.pattern,
-                example_line=r.example_line,
-                target_field=r.target_field,
-                value_type=r.value_type or "string",
-                value_map=r.value_map or {},
-                static_value=r.static_value,
-                semantic_category=r.semantic_category or "",
-                source=r.source or "human",
-                confidence=r.confidence or 1.0,
-                approved_by=r.approved_by or "admin",
-                approved_at=r.approved_at,
-                active=bool(r.active),
-                created_at=r.created_at,
-            )
-            for r in rows
-        ]
+        rules_out = [_to_parse_rule_out(r) for r in rows]
         return {
             "items": [r.model_dump(mode="json") for r in rules_out],
             "total": total,
@@ -283,28 +284,7 @@ def list_rules(
         }
 
     rows = query.all()
-    rules_out = [
-        ParseRuleOut(
-            id=r.id,
-            vendor=r.vendor,
-            platform=r.platform or "*",
-            os_range=r.os_range or "*",
-            pattern=r.pattern,
-            example_line=r.example_line,
-            target_field=r.target_field,
-            value_type=r.value_type or "string",
-            value_map=r.value_map or {},
-            static_value=r.static_value,
-            semantic_category=r.semantic_category or "",
-            source=r.source or "human",
-            confidence=r.confidence or 1.0,
-            approved_by=r.approved_by or "admin",
-            approved_at=r.approved_at,
-            active=bool(r.active),
-            created_at=r.created_at,
-        )
-        for r in rows
-    ]
+    rules_out = [_to_parse_rule_out(r) for r in rows]
     return LearnedRulesResponse(rules=rules_out, total=len(rules_out))
 
 
@@ -318,7 +298,7 @@ def list_rules(
 def disable_rule(
     rule_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: User = Depends(require_role(["admin", "auditor"])),
+    user: Annotated[User, Depends(require_role(["admin", "auditor"]))],
 ) -> dict:
     """Disable a ParseRule (soft-delete). The rule stays in the DB for audit purposes."""
     rule = db.get(ParseRule, rule_id)
@@ -354,7 +334,7 @@ def disable_rule(
 def delete_rule(
     rule_id: int,
     db: Annotated[Session, Depends(get_db)],
-    user: User = Depends(require_role(["admin"])),
+    user: Annotated[User, Depends(require_role(["admin"]))],
 ) -> dict:
     """Permanently delete a ParseRule (Admin only) and re-normalize affected configs."""
     rule = db.get(ParseRule, rule_id)

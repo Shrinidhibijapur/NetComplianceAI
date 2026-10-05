@@ -209,7 +209,6 @@ def download_report_pdf(
 
 @router.get(
     "/{config_id}/metadata",
-    response_model=ReportMetadata,
     responses={
         400: {"description": "Unknown framework error"},
         404: {"description": "Config record not found"},
@@ -244,7 +243,6 @@ def get_report_metadata(
 
 @router.get(
     "/{config_id}/json",
-    response_model=ReportJsonExport,
     responses={
         400: {"description": "Unknown framework error"},
         404: {"description": "Config record not found"},
@@ -310,7 +308,6 @@ def export_report_json(
 
 @router.get(
     "/fleet/summary",
-    response_model=FleetSummary,
     responses={
         400: {"description": "Unknown framework error"},
     },

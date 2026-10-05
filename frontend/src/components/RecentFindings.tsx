@@ -34,6 +34,80 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
     }
   };
 
+  let content: React.ReactNode;
+  if (loading) {
+    content = (
+      <div className="py-6 text-center text-xs text-slate-400">
+        Loading non-compliant findings...
+      </div>
+    );
+  } else if (findings.length === 0) {
+    content = (
+      <div className="py-8 text-center bg-slate-950/40 rounded-lg border border-slate-800/80">
+        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-80" />
+        <p className="text-sm font-medium text-slate-200">No Failed Controls Found</p>
+        <p className="text-xs text-slate-500 mt-1">
+          All audited devices meet compliance standards for this framework.
+        </p>
+      </div>
+    );
+  } else {
+    content = (
+      <div className="space-y-2.5">
+        {findings.slice(0, 5).map((f, idx) => (
+          <div
+            key={`${f.configId}-${f.control_id}-${idx}`}
+            role="button"
+            tabIndex={0}
+            onClick={() => onSelectFinding?.(f)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelectFinding?.(f);
+              }
+            }}
+            className="p-3 bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800/80 hover:border-slate-700 rounded-lg transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-3 group text-left"
+          >
+            <div className="flex items-start gap-3 min-w-0">
+              {getSeverityBadge(f.severity)}
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-mono font-bold text-slate-300 group-hover:text-emerald-400 transition-colors">
+                    {f.control_id}
+                  </span>
+                  <span className="text-xs text-slate-200 truncate font-medium">{f.title}</span>
+                </div>
+                <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 flex-wrap">
+                  <span className="flex items-center gap-1 font-mono text-slate-300">
+                    <FileCode2 className="w-3 h-3 text-slate-500" />
+                    {f.deviceId}
+                  </span>
+                  <span>•</span>
+                  <span className="uppercase text-slate-400 font-semibold">{f.vendor}</span>
+                  <span>•</span>
+                  <span className="font-mono text-slate-400">key: {f.canonical_key}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+              {f.remediation && f.remediation_verified ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded">
+                  VERIFIED REMEDIATION
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-800/80 border border-slate-700/80 px-2 py-0.5 rounded">
+                  NO VERIFIED REMEDIATION
+                </span>
+              )}
+              <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-slate-200 group-hover:translate-x-0.5 transition-all" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className={`bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl p-5 shadow-lg ${className}`}>
       <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
@@ -58,60 +132,7 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
         )}
       </div>
 
-      {loading ? (
-        <div className="py-6 text-center text-xs text-slate-400">Loading non-compliant findings...</div>
-      ) : findings.length === 0 ? (
-        <div className="py-8 text-center bg-slate-950/40 rounded-lg border border-slate-800/80">
-          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-80" />
-          <p className="text-sm font-medium text-slate-200">No Failed Controls Found</p>
-          <p className="text-xs text-slate-500 mt-1">All audited devices meet compliance standards for this framework.</p>
-        </div>
-      ) : (
-        <div className="space-y-2.5">
-          {findings.slice(0, 5).map((f, idx) => (
-            <div
-              key={`${f.configId}-${f.control_id}-${idx}`}
-              onClick={() => onSelectFinding?.(f)}
-              className="p-3 bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800/80 hover:border-slate-700 rounded-lg transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-3 group"
-            >
-              <div className="flex items-start gap-3 min-w-0">
-                {getSeverityBadge(f.severity)}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-mono font-bold text-slate-300 group-hover:text-emerald-400 transition-colors">
-                      {f.control_id}
-                    </span>
-                    <span className="text-xs text-slate-200 truncate font-medium">{f.title}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 flex-wrap">
-                    <span className="flex items-center gap-1 font-mono text-slate-300">
-                      <FileCode2 className="w-3 h-3 text-slate-500" />
-                      {f.deviceId}
-                    </span>
-                    <span>•</span>
-                    <span className="uppercase text-slate-400 font-semibold">{f.vendor}</span>
-                    <span>•</span>
-                    <span className="font-mono text-slate-400">key: {f.canonical_key}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
-                {f.remediation && f.remediation_verified ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded">
-                    VERIFIED REMEDIATION
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-800/80 border border-slate-700/80 px-2 py-0.5 rounded">
-                    NO VERIFIED REMEDIATION
-                  </span>
-                )}
-                <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-slate-200 group-hover:translate-x-0.5 transition-all" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {content}
     </div>
   );
 };

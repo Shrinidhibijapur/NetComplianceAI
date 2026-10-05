@@ -72,7 +72,7 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
         .catch(() => [])
     );
 
-    Promise.all(promises).then((results) => {
+    void Promise.all(promises).then((results) => {
       if (mounted) {
         const flattened = results.flat();
         // Sort by severity (high first)
@@ -93,6 +93,87 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
     ? Math.round((records.reduce((acc, r) => acc + r.parse_confidence, 0) / totalDevices) * 100)
     : 0;
   const totalUnmapped = records.reduce((acc, r) => acc + r.unmapped_count, 0);
+
+  let devicesTableContent: React.ReactNode;
+  if (loading) {
+    devicesTableContent = <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>Loading device posture...</div>;
+  } else if (records.length === 0) {
+    devicesTableContent = (
+      <EmptyState
+        title="No devices audited yet"
+        description="Ingest network configuration files from Cisco, Juniper, Arista, Fortinet, or custom vendors to inspect security compliance posture."
+        action={
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => onSelectTab("upload")}>
+            Upload Configuration
+          </button>
+        }
+      />
+    );
+  } else {
+    devicesTableContent = (
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Device ID</th>
+            <th>Vendor</th>
+            <th>Parse Confidence</th>
+            <th>Unmapped Lines</th>
+            <th>Scan Time</th>
+            <th>PDF Report</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.slice(0, 5).map((r) => (
+            <tr key={r.id}>
+              <td>
+                <TechnicalValue value={r.device_id} />
+              </td>
+              <td>
+                <span className="mono" style={{ textTransform: "uppercase", fontSize: "0.8rem" }}>
+                  {r.vendor}
+                </span>
+              </td>
+              <td>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "6px",
+                      backgroundColor: "var(--bg-elevated)",
+                      borderRadius: "var(--radius-sm)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.round(r.parse_confidence * 100)}%`,
+                        height: "100%",
+                        backgroundColor: getConfidenceColor(r.parse_confidence),
+                      }}
+                    />
+                  </div>
+                  <span className="mono" style={{ fontSize: "0.8rem", width: "40px" }}>
+                    {Math.round(r.parse_confidence * 100)}%
+                  </span>
+                </div>
+              </td>
+              <td>
+                {r.unmapped_count > 0 ? (
+                  <span className="badge badge-unknown">{r.unmapped_count} lines</span>
+                ) : (
+                  <span className="badge badge-pass">0 lines</span>
+                )}
+              </td>
+              <td style={{ fontSize: "0.8rem" }}>{new Date(r.created_at).toLocaleString()}</td>
+              <td>
+                <ReportDownloadButton configId={r.id} deviceId={r.device_id} framework={framework} variant="compact" />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -158,81 +239,7 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
             </button>
           </div>
 
-          {loading ? (
-            <div style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>Loading device posture...</div>
-          ) : records.length === 0 ? (
-            <EmptyState
-              title="No devices audited yet"
-              description="Ingest network configuration files from Cisco, Juniper, Arista, Fortinet, or custom vendors to inspect security compliance posture."
-              action={
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => onSelectTab("upload")}>
-                  Upload Configuration
-                </button>
-              }
-            />
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Device ID</th>
-                  <th>Vendor</th>
-                  <th>Parse Confidence</th>
-                  <th>Unmapped Lines</th>
-                  <th>Scan Time</th>
-                  <th>PDF Report</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.slice(0, 5).map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <TechnicalValue value={r.device_id} />
-                    </td>
-                    <td>
-                      <span className="mono" style={{ textTransform: "uppercase", fontSize: "0.8rem" }}>
-                        {r.vendor}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <div
-                          style={{
-                            flex: 1,
-                            height: "6px",
-                            backgroundColor: "var(--bg-elevated)",
-                            borderRadius: "var(--radius-sm)",
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${Math.round(r.parse_confidence * 100)}%`,
-                              height: "100%",
-                              backgroundColor: getConfidenceColor(r.parse_confidence),
-                            }}
-                          />
-                        </div>
-                        <span className="mono" style={{ fontSize: "0.8rem", width: "40px" }}>
-                          {Math.round(r.parse_confidence * 100)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      {r.unmapped_count > 0 ? (
-                        <span className="badge badge-unknown">{r.unmapped_count} lines</span>
-                      ) : (
-                        <span className="badge badge-pass">0 lines</span>
-                      )}
-                    </td>
-                    <td style={{ fontSize: "0.8rem" }}>{new Date(r.created_at).toLocaleString()}</td>
-                    <td>
-                      <ReportDownloadButton configId={r.id} deviceId={r.device_id} framework={framework} variant="compact" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {devicesTableContent}
         </div>
 
         {/* Right Column: Intelligence & Quick Action Panel */}

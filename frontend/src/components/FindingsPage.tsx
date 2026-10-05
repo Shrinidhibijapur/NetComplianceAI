@@ -112,7 +112,7 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
       a.download = `compliance_findings_${selectedFramework}.json`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
       alert(`Export failed: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -280,12 +280,14 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
       <div className="data-table-wrapper">
         {loading ? (
           <div style={{ padding: "3rem", textAlign: "center", color: "var(--text-muted)" }}>Evaluating compliance findings...</div>
-        ) : filtered.length === 0 ? (
+        ) : null}
+        {!loading && filtered.length === 0 && (
           <EmptyState
             title="No findings match your filters"
             description="Try changing your framework, status, or severity selection, or ingest device configurations to generate compliance findings."
           />
-        ) : (
+        )}
+        {!loading && filtered.length > 0 && (
           <table className="data-table">
             <thead>
               <tr>
@@ -354,9 +356,6 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
       {/* Inspect Drawer/Modal if clicked */}
       {inspectRecord && (
         <div
-          role="button"
-          tabIndex={0}
-          aria-label="Close modal overlay"
           style={{
             position: "fixed",
             top: 0,
@@ -368,14 +367,13 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
             display: "flex",
             justifyContent: "flex-end",
           }}
-          onClick={() => setInspectRecord(null)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" || e.key === "Enter") setInspectRecord(null);
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setInspectRecord(null);
           }}
         >
           <div
-            role="dialog"
-            aria-modal="true"
+            role="region"
+            aria-label="Device Evidence Details"
             style={{
               width: "600px",
               maxWidth: "100%",
@@ -385,8 +383,6 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
               padding: "2rem",
               borderLeft: "1px solid var(--border-medium)",
             }}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
               <h2 style={{ fontSize: "1.2rem", fontWeight: 700 }}>Device Compliance Results</h2>

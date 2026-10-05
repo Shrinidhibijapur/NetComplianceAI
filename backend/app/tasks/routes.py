@@ -6,7 +6,6 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get(
     "/{task_id}",
-    response_model=TaskStatus,
     responses={
         404: {"description": "Task ID not found"},
     },
