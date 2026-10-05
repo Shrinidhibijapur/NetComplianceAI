@@ -1,0 +1,56 @@
+/* Enterprise Cybersecurity Console Design Tokens */
+:root {
+  /* Colors */
+  --bg-root: #080C12;
+  --bg-sidebar: #0D131B;
+  --bg-surface: #111923;
+  --bg-surface-hover: #151E28;
+  --bg-elevated: #1B2632;
+  --bg-card: #111923;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.14);
+  --border-accent: rgba(56, 189, 248, 0.3);
+
+  --accent-primary: #38BDF8;
+  --accent-primary-hover: #0EA5E9;
+  --accent-dim: rgba(56, 189, 248, 0.12);
+
+  /* Status Colors */
+  --status-pass: #10B981;
+  --status-pass-bg: rgba(16, 185, 129, 0.12);
+  --status-fail: #EF4444;
+  --status-fail-bg: rgba(239, 68, 68, 0.12);
+  --status-unknown: #F59E0B;
+  --status-unknown-bg: rgba(245, 158, 11, 0.12);
+  --status-unmapped: #9CA3AF;
+  --status-unmapped-bg: rgba(156, 163, 175, 0.12);
+  --status-info: #06B6D4;
+  --status-info-bg: rgba(6, 182, 212, 0.12);
+
+  /* Severity Colors */
+  --severity-high: #EF4444;
+  --severity-high-bg: rgba(239, 68, 68, 0.15);
+  --severity-medium: #F59E0B;
+  --severity-medium-bg: rgba(245, 158, 11, 0.15);
+  --severity-low: #3B82F6;
+  --severity-low-bg: rgba(59, 130, 246, 0.15);
+
+  /* Typography */
+  --text-primary: #E6EDF3;
+  --text-secondary: #A8B3C2;
+  --text-muted: #718096;
+  --text-inverse: #080C12;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Consolas, Menlo, monospace;
+
+  /* Spacing & Layout */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+}

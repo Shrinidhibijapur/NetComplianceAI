@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { api } from "../api";
 import type { ParseRuleOut } from "../types";
 import { toast } from "../toast";
+import { PageHeader } from "./common/PageHeader";
+import { EmptyState } from "./common/EmptyState";
+import { TechnicalValue } from "./common/TechnicalValue";
 
 export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }) {
   const [rules, setRules] = useState<ParseRuleOut[]>([]);
@@ -26,6 +29,9 @@ export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }
   useEffect(() => {
     loadRules();
   }, [refreshKey]);
+
+  const activeCount = useMemo(() => rules.filter((r) => r.active).length, [rules]);
+  const disabledCount = useMemo(() => rules.filter((r) => !r.active).length, [rules]);
 
   async function handleDisable(rule: ParseRuleOut) {
     try {
@@ -55,46 +61,82 @@ export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <h1>Learned Rules</h1>
-        <p>
-          Admin-approved parse rules stored in the database. Each rule is a generalized regex
-          pattern that maps an unrecognized configuration line to a compliance control field.
-          Disabling a rule re-normalizes all affected configs immediately.
-        </p>
-      </div>
+    <div className="page" style={{ maxWidth: 1200, margin: "0 auto", padding: "1.5rem" }}>
+      <PageHeader
+        title="Learned Rules Registry"
+        description="Admin-approved parse rules stored in the database. Each rule is a generalized regex pattern mapping unrecognized syntax to a canonical compliance control field. Disabling or deleting a rule triggers immediate re-normalization of affected configs."
+      />
 
-      {error && <div className="error-banner">{error}</div>}
-
-      <div className="card" style={{ marginBottom: "var(--space-4)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span className="faint">
-            {loading ? "Loading…" : `${total} rule${total !== 1 ? "s" : ""} total`}
-          </span>
-          <button type="button" className="btn" onClick={loadRules} disabled={loading}>
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {!loading && rules.length === 0 && (
-        <div className="card">
-          <div className="empty">
-            No learned rules yet. Go to the <strong>AI Training</strong> page to approve rules
-            from unmapped configuration lines.
-          </div>
+      {error && (
+        <div className="error-banner" style={{ marginBottom: "1.5rem" }}>
+          ⚠️ {error}
         </div>
       )}
 
-      {rules.map((rule) => (
-        <RuleCard
-          key={rule.id}
-          rule={rule}
-          onDisable={handleDisable}
-          onDelete={handleDelete}
+      {/* Rules Summary Bar */}
+      <div style={{
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border-medium)",
+        borderRadius: "var(--radius-md)",
+        padding: "1rem 1.25rem",
+        marginBottom: "1.5rem",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "1rem"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Total Rules: </span>
+            <strong style={{ fontSize: "1rem", color: "var(--text-primary)" }}>{total}</strong>
+          </div>
+          <div>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Active: </span>
+            <strong style={{ fontSize: "1rem", color: "#10b981" }}>{activeCount}</strong>
+          </div>
+          <div>
+            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>Disabled: </span>
+            <strong style={{ fontSize: "1rem", color: "var(--text-muted)" }}>{disabledCount}</strong>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={loadRules}
+          style={{
+            background: "var(--bg-elevated)",
+            border: "1px solid var(--border-medium)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--text-primary)",
+            padding: "0.4rem 0.85rem",
+            fontSize: "0.825rem",
+            cursor: loading ? "not-allowed" : "pointer"
+          }}
+        >
+          {loading ? "Refreshing…" : "🔄 Refresh Rules"}
+        </button>
+      </div>
+
+      {!loading && rules.length === 0 && (
+        <EmptyState
+          title="No learned rules registered yet"
+          description="Go to the AI Pattern Training page to approve rules from unmapped configuration syntax lines."
         />
-      ))}
+      )}
+
+      {rules.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {rules.map((rule) => (
+            <RuleCard
+              key={rule.id}
+              rule={rule}
+              onDisable={handleDisable}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -112,119 +154,173 @@ function RuleCard({
   const [deleting, setDeleting] = useState(false);
 
   return (
-    <div
-      className="card"
-      style={{
-        marginBottom: "var(--space-3)",
-        opacity: rule.active ? 1 : 0.55,
-        borderLeft: `3px solid ${rule.active ? "var(--color-accent)" : "var(--color-border)"}`,
-      }}
-    >
+    <div style={{
+      background: "var(--bg-surface)",
+      border: `1px solid ${rule.active ? "var(--border-medium)" : "var(--border-subtle)"}`,
+      borderLeft: `4px solid ${rule.active ? "var(--accent-primary, #38bdf8)" : "var(--text-muted)"}`,
+      borderRadius: "var(--radius-md)",
+      padding: "1.25rem 1.5rem",
+      opacity: rule.active ? 1 : 0.6,
+      boxShadow: rule.active ? "0 2px 10px rgba(0,0,0,0.15)" : "none",
+      transition: "all 0.2s ease"
+    }}>
       {/* Header row */}
-      <div className="toolbar" style={{ marginBottom: "var(--space-3)" }}>
-        <div style={{ flex: 1 }}>
-          <span
-            style={{
-              display: "inline-block",
-              fontSize: "0.7rem",
-              fontWeight: 700,
-              letterSpacing: "0.08em",
-              padding: "2px 8px",
-              borderRadius: 4,
-              background: rule.active ? "rgba(56,189,248,0.15)" : "rgba(255,255,255,0.06)",
-              color: rule.active ? "var(--color-accent)" : "var(--color-text-muted)",
-              marginRight: "var(--space-2)",
-            }}
-          >
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: "1rem",
+        borderBottom: "1px solid var(--border-subtle)",
+        paddingBottom: "0.75rem"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            padding: "0.2rem 0.55rem",
+            borderRadius: "var(--radius-sm)",
+            background: rule.active ? "rgba(56, 189, 248, 0.15)" : "rgba(255, 255, 255, 0.06)",
+            color: rule.active ? "var(--accent-primary, #38bdf8)" : "var(--text-muted)",
+            border: `1px solid ${rule.active ? "rgba(56, 189, 248, 0.3)" : "var(--border-subtle)"}`
+          }}>
             {rule.active ? "ACTIVE" : "DISABLED"}
           </span>
-          <span className="faint" style={{ fontSize: "0.8rem" }}>
-            #{rule.id} · {rule.source.toUpperCase()} · approved by {rule.approved_by}
+          <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
+            Rule #{rule.id}
+          </span>
+          <span style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>
+            • Source: <strong>{rule.source.toUpperCase()}</strong> • Approved by <strong>{rule.approved_by}</strong>
           </span>
         </div>
-        <span className="faint" style={{ fontSize: "0.75rem" }}>
-          {new Date(rule.approved_at).toLocaleString()}
+
+        <span style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>
+          Approved {new Date(rule.approved_at).toLocaleString()}
         </span>
       </div>
 
-      {/* Core info grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "var(--space-3)",
-          marginBottom: "var(--space-3)",
-        }}
-      >
+      {/* Grid details */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: "1rem",
+        marginBottom: "1rem"
+      }}>
         <div>
-          <div className="faint" style={{ fontSize: "0.75rem", marginBottom: "var(--space-1)" }}>
-            TARGET FIELD
+          <div style={{ fontSize: "0.725rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+            Target Canonical Field
           </div>
-          <code style={{ color: "var(--color-accent)" }}>{rule.target_field}</code>
+          <TechnicalValue value={rule.target_field} />
         </div>
+
         <div>
-          <div className="faint" style={{ fontSize: "0.75rem", marginBottom: "var(--space-1)" }}>
-            VENDOR · PLATFORM · OS
+          <div style={{ fontSize: "0.725rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+            Vendor / Platform / OS Scope
           </div>
-          <code>
+          <code style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             {rule.vendor} / {rule.platform} / {rule.os_range}
           </code>
         </div>
-        <div>
-          <div className="faint" style={{ fontSize: "0.75rem", marginBottom: "var(--space-1)" }}>
-            PATTERN
+
+        <div style={{ gridColumn: "span 2" }}>
+          <div style={{ fontSize: "0.725rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+            Generalized Extraction Regex Pattern
           </div>
-          <code className="code-line" style={{ wordBreak: "break-all" }}>
+          <div style={{
+            background: "var(--bg-elevated)",
+            padding: "0.4rem 0.75rem",
+            borderRadius: "var(--radius-sm)",
+            fontFamily: "monospace",
+            fontSize: "0.85rem",
+            color: "#10b981",
+            wordBreak: "break-all",
+            border: "1px solid var(--border-subtle)"
+          }}>
             {rule.pattern}
-          </code>
-        </div>
-        <div>
-          <div className="faint" style={{ fontSize: "0.75rem", marginBottom: "var(--space-1)" }}>
-            EXAMPLE LINE
           </div>
-          <code className="code-line" style={{ color: "var(--color-text-secondary)" }}>
+        </div>
+
+        <div style={{ gridColumn: "span 2" }}>
+          <div style={{ fontSize: "0.725rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>
+            Example Input Syntax
+          </div>
+          <code style={{
+            display: "block",
+            background: "var(--bg-elevated)",
+            padding: "0.4rem 0.75rem",
+            borderRadius: "var(--radius-sm)",
+            fontSize: "0.85rem",
+            color: "var(--text-secondary)",
+            border: "1px solid var(--border-subtle)",
+            wordBreak: "break-all"
+          }}>
             {rule.example_line}
           </code>
         </div>
       </div>
 
-      {/* Secondary info */}
-      <div className="toolbar" style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginBottom: "var(--space-3)" }}>
-        <span>type: <code>{rule.value_type}</code></span>
-        {rule.semantic_category && <span>category: {rule.semantic_category}</span>}
-        <span>confidence: {Math.round(rule.confidence * 100)}%</span>
-      </div>
+      {/* Meta Footer & Actions */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingTop: "0.75rem",
+        borderTop: "1px solid var(--border-subtle)"
+      }}>
+        <div style={{ display: "flex", gap: "1rem", fontSize: "0.775rem", color: "var(--text-muted)" }}>
+          <span>Value type: <code>{rule.value_type}</code></span>
+          {rule.semantic_category && <span>Category: <strong>{rule.semantic_category}</strong></span>}
+          <span>Confidence: <strong>{Math.round(rule.confidence * 100)}%</strong></span>
+        </div>
 
-      {/* Actions */}
-      <div className="toolbar">
-        {rule.active && (
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {rule.active && (
+            <button
+              type="button"
+              disabled={disabling}
+              onClick={async () => {
+                setDisabling(true);
+                await onDisable(rule);
+                setDisabling(false);
+              }}
+              style={{
+                background: "var(--bg-elevated)",
+                border: "1px solid var(--border-medium)",
+                borderRadius: "var(--radius-sm)",
+                color: "var(--text-primary)",
+                padding: "0.35rem 0.75rem",
+                fontSize: "0.8rem",
+                cursor: disabling ? "not-allowed" : "pointer"
+              }}
+            >
+              {disabling ? "Disabling…" : "Disable Rule"}
+            </button>
+          )}
+
           <button
             type="button"
-            className="btn"
-            disabled={disabling}
+            disabled={deleting}
             onClick={async () => {
-              setDisabling(true);
-              await onDisable(rule);
-              setDisabling(false);
+              setDeleting(true);
+              await onDelete(rule);
+              setDeleting(false);
+            }}
+            style={{
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.3)",
+              borderRadius: "var(--radius-sm)",
+              color: "#ef4444",
+              padding: "0.35rem 0.75rem",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              cursor: deleting ? "not-allowed" : "pointer"
             }}
           >
-            {disabling ? <span className="spinner" /> : "Disable"}
+            {deleting ? "Deleting…" : "Delete Rule"}
           </button>
-        )}
-        <button
-          type="button"
-          className="btn"
-          style={{ color: "var(--color-critical)" }}
-          disabled={deleting}
-          onClick={async () => {
-            setDeleting(true);
-            await onDelete(rule);
-            setDeleting(false);
-          }}
-        >
-          {deleting ? <span className="spinner" /> : "Delete"}
-        </button>
+        </div>
       </div>
     </div>
   );
 }
+

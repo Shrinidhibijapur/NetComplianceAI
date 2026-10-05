@@ -2,6 +2,8 @@ import { useState } from "react";
 import { api, AUTO_VENDOR, KNOWN_VENDORS } from "../api";
 import { SAMPLE_CONFIGS, sampleAsFile } from "../samples";
 import { toast } from "../toast";
+import { PageHeader } from "./common/PageHeader";
+import { TechnicalValue } from "./common/TechnicalValue";
 
 interface BulkItem {
   file: File;
@@ -98,7 +100,6 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
       } else {
         toast(`Ingested ${ok} device(s); ${failed.length} failed.`, "error");
         setError(failed.map((r) => `${r.filename}: ${r.error}`).join(" | "));
-        // keep only the failed files so they can be fixed and retried
         setItems((prev) => prev.filter((i) => failed.some((f) => f.filename === i.file.name && f.device_id === i.deviceId)));
       }
       if (ok > 0) onUploaded();
@@ -110,30 +111,47 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
   }
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <h1>Ingest configuration files</h1>
-        <p>
-          Upload a single device config or a bulk batch from any vendor. Recognized vendors are
-          parsed immediately; unrecognized syntax is routed to the AI Training tab instead of
-          being rejected.
-        </p>
+    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+      <PageHeader
+        title="Configuration Ingestion"
+        description="Upload raw network configuration exports for automatic vendor identification, baseline normalization, compliance auditing, and AI parsing."
+      />
+
+      {/* Bundled Samples Chip Section */}
+      {!file && items.length === 0 && <SampleSection loadSample={loadSample} />}
+
+      {/* Mode Selector Tabs */}
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        <button
+          type="button"
+          className={`btn ${mode === "single" ? "btn-primary" : "btn-secondary"}`}
+          onClick={() => setMode("single")}
+        >
+          Single File Upload
+        </button>
+        <button
+          type="button"
+          className={`btn ${mode === "bulk" ? "btn-primary" : "btn-secondary"}`}
+          onClick={() => setMode("bulk")}
+        >
+          Bulk Fleet Ingestion
+        </button>
       </div>
 
-      {!file && items.length === 0 && (
-        <SampleSection loadSample={loadSample} />
+      {error && (
+        <div
+          style={{
+            backgroundColor: "var(--severity-high-bg)",
+            border: "1px solid rgba(239,68,68,0.4)",
+            color: "var(--severity-high)",
+            padding: "0.85rem 1.25rem",
+            borderRadius: "var(--radius-md)",
+            fontSize: "0.9rem",
+          }}
+        >
+          ⚠️ {error}
+        </div>
       )}
-
-      <div className="subtabs">
-        <button className={mode === "single" ? "active" : ""} onClick={() => setMode("single")}>
-          Single file
-        </button>
-        <button className={mode === "bulk" ? "active" : ""} onClick={() => setMode("bulk")}>
-          Bulk batch
-        </button>
-      </div>
-
-      {error && <div className="error-banner">{error}</div>}
 
       {mode === "single" ? (
         <SingleUploadCard
@@ -167,16 +185,29 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
 
 function SampleSection({ loadSample }: { readonly loadSample: (index: number) => void }) {
   return (
-    <div className="card">
-      <h3>No configs on hand? Try the bundled samples</h3>
-      <p className="card-sub">
-        Synthetic, safe sample configs — one hardened, one that needs work, and one from an
-        unrecognized "whitebox" vendor to demo the AI training loop.
+    <div
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "var(--radius-md)",
+        padding: "1.25rem",
+      }}
+    >
+      <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.25rem" }}>
+        No configs on hand? Load Bundled Samples
+      </h3>
+      <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
+        Synthetic sample configs — hardened Cisco IOS, work-needed Juniper JunOS, and unrecognized whitebox syntax.
       </p>
-      <div className="chip-row">
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         {SAMPLE_CONFIGS.map((s, i) => (
-          <button type="button" key={s.filename} className="chip" onClick={() => loadSample(i)}>
-            {s.label}
+          <button
+            type="button"
+            key={s.filename}
+            className="btn btn-secondary btn-sm"
+            onClick={() => loadSample(i)}
+          >
+            ⚡ {s.label}
           </button>
         ))}
       </div>
@@ -212,10 +243,21 @@ function SingleUploadCard({
   readonly submitSingle: () => void;
 }) {
   return (
-    <div className="card">
-      <h3>Device config</h3>
+    <div
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        border: "1px solid var(--border-medium)",
+        borderRadius: "var(--radius-md)",
+        padding: "1.75rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.25rem",
+      }}
+    >
+      <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>Single Device Export</h3>
+
+      {/* Drag & Drop Area */}
       <label
-        className={`dropzone${dragging ? " dragover" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -226,39 +268,69 @@ function SingleUploadCard({
           setDragging(false);
           if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
         }}
+        style={{
+          border: dragging ? "2px dashed var(--accent-primary)" : "2px dashed var(--border-medium)",
+          backgroundColor: dragging ? "var(--accent-dim)" : "var(--bg-elevated)",
+          borderRadius: "var(--radius-md)",
+          padding: "3rem 2rem",
+          textAlign: "center",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.5rem",
+          transition: "all 0.15s ease",
+        }}
       >
+        <div style={{ fontSize: "2rem", color: "var(--accent-primary)" }}>⇪</div>
         {file ? (
-          <span>
-            <strong>{file.name}</strong> selected — click to change
-          </span>
+          <div>
+            <strong style={{ color: "var(--text-primary)" }}>{file.name}</strong> ({Math.round(file.size / 1024)} KB) selected
+          </div>
         ) : (
-          <span>Drag a config file here, or click to browse</span>
+          <div>
+            <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+              Drag and drop network configuration file here
+            </div>
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+              Supports Cisco, Juniper, Arista, Fortinet, RouterOS, SONiC, AWS SG, or custom text files
+            </div>
+          </div>
         )}
-        <input
-          type="file"
-          hidden
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
+        <input type="file" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       </label>
 
-      <div className="row" style={{ marginTop: "var(--space-4)" }}>
-        <div className="field">
-          <label htmlFor="upload-device-id">Device ID</label>
+      {/* Device ID and Vendor Options */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.25rem" }}>
+        <div>
+          <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
+            Device Identifier:
+          </label>
           <input
             id="upload-device-id"
             value={deviceId}
             onChange={(e) => setDeviceId(e.target.value)}
-            placeholder="e.g. core-sw-01"
+            placeholder="e.g. core-switch-01"
+            style={{
+              width: "100%",
+              backgroundColor: "var(--bg-elevated)",
+              border: "1px solid var(--border-medium)",
+              color: "var(--text-primary)",
+              padding: "0.5rem 0.75rem",
+              borderRadius: "var(--radius-sm)",
+              fontFamily: "var(--font-mono)",
+            }}
           />
         </div>
-        <div className="field">
-          <span className="faint" style={{ display: "block", marginBottom: "var(--space-1)" }}>
-            Vendor — optional override
-          </span>
-          <div className="chip-row">
+
+        <div>
+          <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
+            Vendor Profile (Optional Override):
+          </label>
+          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
             <button
               type="button"
-              className={`chip${vendor === AUTO_VENDOR ? " selected" : ""}`}
+              className={`btn btn-sm ${vendor === AUTO_VENDOR ? "btn-primary" : "btn-secondary"}`}
               onClick={() => setVendor(AUTO_VENDOR)}
             >
               Auto-detect
@@ -267,40 +339,48 @@ function SingleUploadCard({
               <button
                 type="button"
                 key={v}
-                className={`chip${vendor === v ? " selected" : ""}`}
+                className={`btn btn-sm ${vendor === v ? "btn-primary" : "btn-secondary"}`}
                 onClick={() => setVendor(v)}
               >
                 {v}
               </button>
             ))}
-            <button
-              type="button"
-              className={`chip chip-input${vendor === "__other__" ? " filled" : ""}`}
-              onClick={() => setVendor("__other__")}
-            >
-              {vendor === "__other__" ? (
-                <input
-                  value={customVendor}
-                  aria-label="Unknown vendor name"
-                  placeholder="unknown vendor…"
-                  onChange={(e) => setCustomVendor(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                "Other / unknown…"
-              )}
-            </button>
+            {vendor === "__other__" ? (
+              <input
+                value={customVendor}
+                placeholder="vendor name..."
+                onChange={(e) => setCustomVendor(e.target.value)}
+                style={{
+                  backgroundColor: "var(--bg-elevated)",
+                  border: "1px solid var(--accent-primary)",
+                  color: "var(--text-primary)",
+                  padding: "0.2rem 0.5rem",
+                  borderRadius: "var(--radius-sm)",
+                  fontSize: "0.8rem",
+                  fontFamily: "var(--font-mono)",
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setVendor("__other__")}
+              >
+                Other...
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       <button
+        type="button"
         className="btn btn-primary"
-        style={{ marginTop: "var(--space-4)" }}
         disabled={busy}
         onClick={submitSingle}
+        style={{ marginTop: "0.5rem" }}
       >
-        {busy ? <span className="spinner" /> : "Ingest config"}
+        {busy ? "Ingesting Configuration..." : "Ingest Configuration →"}
       </button>
     </div>
   );
@@ -324,10 +404,20 @@ function BulkUploadCard({
   readonly submitBulk: () => void;
 }) {
   return (
-    <div className="card">
-      <h3>Bulk batch</h3>
+    <div
+      style={{
+        backgroundColor: "var(--bg-surface)",
+        border: "1px solid var(--border-medium)",
+        borderRadius: "var(--radius-md)",
+        padding: "1.75rem",
+        display: "flex",
+        flexDirection: "column",
+        gap: "1.25rem",
+      }}
+    >
+      <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>Bulk Fleet Ingestion Batch</h3>
+
       <label
-        className={`dropzone${dragging ? " dragover" : ""}`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
@@ -338,59 +428,107 @@ function BulkUploadCard({
           setDragging(false);
           addBulkFiles(e.dataTransfer.files);
         }}
+        style={{
+          border: dragging ? "2px dashed var(--accent-primary)" : "2px dashed var(--border-medium)",
+          backgroundColor: dragging ? "var(--accent-dim)" : "var(--bg-elevated)",
+          borderRadius: "var(--radius-md)",
+          padding: "2.5rem 2rem",
+          textAlign: "center",
+          cursor: "pointer",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.5rem",
+        }}
       >
-        <span>Drag multiple config files here, or click to browse</span>
+        <div style={{ fontSize: "1.75rem", color: "var(--accent-primary)" }}>⇪</div>
+        <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+          Drag multiple configuration files here to ingest a fleet batch
+        </div>
         <input type="file" multiple hidden onChange={(e) => addBulkFiles(e.target.files)} />
       </label>
 
       {items.length > 0 && (
-        <div className="file-list">
-          {items.map((item, idx) => (
-            <div className="file-item" key={`${item.file.name}-${idx}`}>
-              <span className="name">{item.file.name}</span>
-              <input
-                className="device-id"
-                aria-label={`Device ID for ${item.file.name}`}
-                value={item.deviceId}
-                onChange={(e) =>
-                  setItems((prev) =>
-                    prev.map((it, i) => (i === idx ? { ...it, deviceId: e.target.value } : it)),
-                  )
-                }
-              />
-              <select
-                aria-label={`Vendor for ${item.file.name}`}
-                value={item.vendor}
-                onChange={(e) =>
-                  setItems((prev) =>
-                    prev.map((it, i) => (i === idx ? { ...it, vendor: e.target.value } : it)),
-                  )
-                }
-              >
-                <option value={AUTO_VENDOR}>auto-detect</option>
-                {KNOWN_VENDORS.map((v) => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-                <option value="unknown_vendor">unknown_vendor</option>
-              </select>
-              <button
-                className="icon-btn danger"
-                title="Remove"
-                aria-label={`Remove ${item.file.name}`}
-                onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
+        <div className="data-table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Device ID</th>
+                <th>Vendor Profile</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={`${item.file.name}-${idx}`}>
+                  <td>
+                    <TechnicalValue value={item.file.name} />
+                  </td>
+                  <td>
+                    <input
+                      value={item.deviceId}
+                      onChange={(e) =>
+                        setItems((prev) =>
+                          prev.map((it, i) => (i === idx ? { ...it, deviceId: e.target.value } : it)),
+                        )
+                      }
+                      style={{
+                        backgroundColor: "var(--bg-elevated)",
+                        border: "1px solid var(--border-medium)",
+                        color: "var(--text-primary)",
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "var(--radius-sm)",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.85rem",
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      value={item.vendor}
+                      onChange={(e) =>
+                        setItems((prev) =>
+                          prev.map((it, i) => (i === idx ? { ...it, vendor: e.target.value } : it)),
+                        )
+                      }
+                      style={{
+                        backgroundColor: "var(--bg-elevated)",
+                        border: "1px solid var(--border-medium)",
+                        color: "var(--text-primary)",
+                        padding: "0.2rem 0.5rem",
+                        borderRadius: "var(--radius-sm)",
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      <option value={AUTO_VENDOR}>Auto-detect</option>
+                      {KNOWN_VENDORS.map((v) => (
+                        <option key={v} value={v}>
+                          {v}
+                        </option>
+                      ))}
+                      <option value="unknown_vendor">unknown_vendor</option>
+                    </select>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <div style={{ marginTop: "var(--space-4)" }}>
-        <button className="btn btn-primary" disabled={busy} onClick={submitBulk}>
-          {busy ? <span className="spinner" /> : `Ingest ${items.length || ""} device(s)`}
+      <div>
+        <button type="button" className="btn btn-primary" disabled={busy} onClick={submitBulk}>
+          {busy ? "Processing Batch..." : `Ingest Batch (${items.length} Files) →`}
         </button>
       </div>
     </div>
