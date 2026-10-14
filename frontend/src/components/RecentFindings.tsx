@@ -26,34 +26,42 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
   const getSeverityBadge = (severity: string) => {
     switch (severity.toLowerCase()) {
       case "high":
-        return <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-rose-500/15 text-rose-400 border border-rose-500/30">HIGH</span>;
+        return <span className="cc-severity-badge high">HIGH</span>;
       case "medium":
-        return <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">MED</span>;
+        return <span className="cc-severity-badge medium">MED</span>;
       default:
-        return <span className="px-2 py-0.5 text-[10px] font-bold rounded uppercase bg-slate-800 text-slate-400 border border-slate-700">LOW</span>;
+        return <span className="cc-severity-badge low">LOW</span>;
     }
   };
 
   let content: React.ReactNode;
   if (loading) {
     content = (
-      <div className="py-6 text-center text-xs text-slate-400">
-        Loading non-compliant findings...
+      <div style={{ padding: "1.5rem 0", textAlign: "center", color: "var(--text-muted)", fontSize: "0.82rem" }}>
+        Loading non-compliant findings across fleet...
       </div>
     );
   } else if (findings.length === 0) {
     content = (
-      <div className="py-8 text-center bg-slate-950/40 rounded-lg border border-slate-800/80">
-        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2 opacity-80" />
-        <p className="text-sm font-medium text-slate-200">No Failed Controls Found</p>
-        <p className="text-xs text-slate-500 mt-1">
-          All audited devices meet compliance standards for this framework.
+      <div
+        style={{
+          padding: "2rem",
+          textAlign: "center",
+          backgroundColor: "var(--bg-root)",
+          borderRadius: "var(--radius-md)",
+          border: "1px solid var(--border-subtle)",
+        }}
+      >
+        <CheckCircle2 style={{ width: "32px", height: "32px", color: "var(--status-pass)", margin: "0 auto 0.5rem", opacity: 0.8 }} />
+        <p style={{ fontSize: "0.92rem", fontWeight: 600, color: "var(--text-primary)" }}>No Failed Controls Detected</p>
+        <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+          All audited devices currently meet baseline compliance rules for this framework.
         </p>
       </div>
     );
   } else {
     content = (
-      <div className="space-y-2.5">
+      <div className="cc-findings-stack">
         {findings.slice(0, 5).map((f, idx) => (
           <div
             key={`${f.configId}-${f.control_id}-${idx}`}
@@ -66,41 +74,39 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
                 onSelectFinding?.(f);
               }
             }}
-            className="p-3 bg-slate-950/60 hover:bg-slate-800/60 border border-slate-800/80 hover:border-slate-700 rounded-lg transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-3 group text-left"
+            className="cc-finding-card"
           >
-            <div className="flex items-start gap-3 min-w-0">
+            <div className="cc-finding-left">
               {getSeverityBadge(f.severity)}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-mono font-bold text-slate-300 group-hover:text-emerald-400 transition-colors">
-                    {f.control_id}
-                  </span>
-                  <span className="text-xs text-slate-200 truncate font-medium">{f.title}</span>
+              <div className="cc-finding-meta">
+                <div className="cc-finding-top">
+                  <span className="cc-control-id">{f.control_id}</span>
+                  <span className="cc-control-title">{f.title}</span>
                 </div>
-                <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400 flex-wrap">
-                  <span className="flex items-center gap-1 font-mono text-slate-300">
-                    <FileCode2 className="w-3 h-3 text-slate-500" />
+                <div className="cc-finding-sub">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontFamily: "var(--font-mono)", color: "var(--text-secondary)" }}>
+                    <FileCode2 style={{ width: "12px", height: "12px", color: "var(--text-muted)" }} />
                     {f.deviceId}
                   </span>
                   <span>•</span>
-                  <span className="uppercase text-slate-400 font-semibold">{f.vendor}</span>
+                  <span style={{ textTransform: "uppercase", fontWeight: 700, color: "var(--text-muted)" }}>{f.vendor}</span>
                   <span>•</span>
-                  <span className="font-mono text-slate-400">key: {f.canonical_key}</span>
+                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>key: {f.canonical_key}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+            <div className="cc-finding-right">
               {f.remediation && f.remediation_verified ? (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded">
+                <span className="cc-remedy-tag verified">
                   VERIFIED REMEDIATION
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 bg-slate-800/80 border border-slate-700/80 px-2 py-0.5 rounded">
-                  NO VERIFIED REMEDIATION
+                <span className="cc-remedy-tag unverified">
+                  NO REMEDIATION SCRIPT
                 </span>
               )}
-              <ArrowRight className="w-4 h-4 text-slate-500 group-hover:text-slate-200 group-hover:translate-x-0.5 transition-all" />
+              <ArrowRight style={{ width: "16px", height: "16px", color: "var(--text-muted)" }} />
             </div>
           </div>
         ))}
@@ -109,25 +115,31 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
   }
 
   return (
-    <div className={`bg-slate-900/80 backdrop-blur border border-slate-800 rounded-xl p-5 shadow-lg ${className}`}>
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400">
-            <ShieldAlert className="w-4 h-4" />
+    <div className={`cc-panel ${className}`.trim()}>
+      <div className="cc-panel-header">
+        <div className="cc-header-left">
+          <div className="cc-icon-pill danger">
+            <ShieldAlert style={{ width: "20px", height: "20px" }} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-slate-100">Action Required: Recent Non-Compliant Findings</h3>
-            <p className="text-xs text-slate-400">Controls requiring remediation across audited devices</p>
+            <h3 className="cc-header-title">
+              Action Required: Recent Non-Compliant Findings
+            </h3>
+            <p className="cc-header-subtitle">
+              Prioritized failed security controls requiring immediate remediation
+            </p>
           </div>
         </div>
 
         {onViewAll && (
           <button
+            type="button"
             onClick={onViewAll}
-            className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+            className="btn btn-secondary btn-sm"
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem" }}
           >
-            <span>View All Findings</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>View All Audit Findings</span>
+            <ArrowRight style={{ width: "14px", height: "14px" }} />
           </button>
         )}
       </div>

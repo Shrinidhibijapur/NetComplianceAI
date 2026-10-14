@@ -86,11 +86,7 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
     setBusy(true);
     setError(null);
     try {
-      const result = await api.uploadConfig(file, effectiveVendor, deviceId);
-      toast(
-        `Ingested ${result.device_id} — parse confidence ${Math.round(result.parse_confidence * 100)}%, ${result.raw_unmapped_lines.length} unmapped line(s).`,
-        "success",
-      );
+      await api.uploadConfig(file, effectiveVendor, deviceId);
       setFile(null);
       setDeviceId("");
       onUploaded();
@@ -128,9 +124,7 @@ export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) 
 
       const failed = results.filter((r) => r.status === "error");
       const ok = results.length - failed.length;
-      if (failed.length === 0) {
-        toast(`Successfully ingested all ${ok} device(s) in batch!`, "success");
-      } else {
+      if (failed.length > 0) {
         toast(`Ingested ${ok} device(s); ${failed.length} failed.`, "error");
         setError(failed.map((r) => `${r.filename}: ${r.error}`).join(" | "));
       }

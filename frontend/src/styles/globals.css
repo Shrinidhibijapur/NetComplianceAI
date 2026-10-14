@@ -1,4 +1,5 @@
 @import "./tokens.css";
+@import "./command-center.css";
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -261,4 +262,49 @@ button, input, select, textarea {
 .btn-sm {
   padding: 0.3rem 0.6rem;
   font-size: 0.78rem;
+}
+
+/* Toast Notifications Container */
+.toast-stack {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 99999;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-left: 3px solid var(--accent-primary);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  max-width: 380px;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.toast-error {
+  border-left-color: var(--status-fail);
+}
+
+.toast-success {
+  border-left-color: var(--status-pass);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }

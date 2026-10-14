@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { AppShell } from "./layouts/AppShell";
-import type { NavTab } from "./components/layout/Sidebar";
 import { CommandCenterPage } from "./components/CommandCenterPage";
 import { UploadPage } from "./components/UploadPage";
 import { DevicesPage } from "./components/DevicesPage";
@@ -10,17 +9,24 @@ import { LearnedRulesPage } from "./components/LearnedRulesPage";
 import { AuditLogsPage } from "./components/AuditLogsPage";
 import { Landing } from "./components/Landing";
 import { BootSequence } from "./components/BootSequence";
+import { useRouter } from "./router";
 
 function App() {
-  const [entered, setEntered] = useState(false);
+  const { entered, tab, navigateTab, navigateLanding, enterConsole } = useRouter();
   const [launching, setLaunching] = useState(false);
-  const [tab, setTab] = useState<NavTab>("dashboard");
   const [refreshKey, setRefreshKey] = useState(0);
   const [trainDeviceId, setTrainDeviceId] = useState<number | null>(null);
 
   if (!entered) {
     if (launching) {
-      return <BootSequence onComplete={() => setEntered(true)} />;
+      return (
+        <BootSequence
+          onComplete={() => {
+            setLaunching(false);
+            enterConsole("dashboard");
+          }}
+        />
+      );
     }
     return <Landing onEnter={() => setLaunching(true)} />;
   }
@@ -28,13 +34,13 @@ function App() {
   return (
     <AppShell
       activeTab={tab}
-      onSelectTab={(newTab) => setTab(newTab)}
+      onSelectTab={(newTab) => navigateTab(newTab)}
       onRefresh={() => setRefreshKey((k) => k + 1)}
-      onExit={() => setEntered(false)}
+      onExit={() => navigateLanding()}
     >
       {tab === "dashboard" && (
         <CommandCenterPage
-          onSelectTab={(newTab) => setTab(newTab)}
+          onSelectTab={(newTab) => navigateTab(newTab)}
           refreshKey={refreshKey}
         />
       )}
@@ -42,7 +48,7 @@ function App() {
         <UploadPage
           onUploaded={() => {
             setRefreshKey((k) => k + 1);
-            setTab("devices");
+            navigateTab("devices");
           }}
         />
       )}
@@ -51,7 +57,7 @@ function App() {
           refreshKey={refreshKey}
           onTrain={(id) => {
             setTrainDeviceId(id);
-            setTab("training");
+            navigateTab("training");
           }}
         />
       )}

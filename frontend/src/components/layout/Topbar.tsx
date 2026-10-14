@@ -1,20 +1,11 @@
 import { SystemStatus } from "./SystemStatus";
 import type { NavTab } from "./Sidebar";
+import { TAB_TITLES } from "../../router";
 
 interface TopbarProps {
   readonly activeTab: NavTab;
   readonly onRefresh: () => void;
 }
-
-const TAB_TITLES: Record<NavTab, { title: string; breadcrumb: string }> = {
-  dashboard: { title: "Network Security Command Center", breadcrumb: "Overview / Command Center" },
-  upload: { title: "Configuration Ingestion", breadcrumb: "Overview / Config Ingestion" },
-  devices: { title: "Audited Infrastructure Devices", breadcrumb: "Overview / Devices" },
-  findings: { title: "Compliance Audit & Findings", breadcrumb: "Compliance / Audit & Findings" },
-  training: { title: "AI Training & Learning Loop", breadcrumb: "Intelligence / AI Training" },
-  rules: { title: "Active Learned Extraction Rules", breadcrumb: "Intelligence / Learned Rules" },
-  audit: { title: "Security Audit Trail", breadcrumb: "Compliance / Audit Trail" },
-};
 
 export function Topbar({ activeTab, onRefresh }: TopbarProps) {
   const info = TAB_TITLES[activeTab] || { title: "ComplianceAI Console", breadcrumb: "Console" };
@@ -32,7 +23,7 @@ export function Topbar({ activeTab, onRefresh }: TopbarProps) {
       }}
     >
       <div>
-        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.04em", marginBottom: "0.15rem" }}>
           {info.breadcrumb}
         </div>
         <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>
