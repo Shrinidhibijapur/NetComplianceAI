@@ -31,6 +31,9 @@ data/uploads/
 data/reports/
 *.pdf
 *.db
+*.db-wal
+*.db-shm
+*.db-*
 
 # Design references (large binaries, not needed for build)
 docs/*.png

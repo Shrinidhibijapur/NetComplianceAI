@@ -356,6 +356,13 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
       {/* Inspect Drawer/Modal if clicked */}
       {inspectRecord && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="device-results-title"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setInspectRecord(null);
+          }}
           style={{
             position: "fixed",
             top: 0,
@@ -367,14 +374,29 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
             display: "flex",
             justifyContent: "flex-end",
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setInspectRecord(null);
-          }}
         >
-          <div
-            role="region"
+          <button
+            type="button"
+            aria-label="Close dialog backdrop"
+            onClick={() => setInspectRecord(null)}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              background: "transparent",
+              border: "none",
+              cursor: "default",
+              padding: 0,
+              margin: 0,
+            }}
+          />
+          <section
             aria-label="Device Evidence Details"
             style={{
+              position: "relative",
+              zIndex: 1,
               width: "600px",
               maxWidth: "100%",
               backgroundColor: "var(--bg-card)",
@@ -385,7 +407,7 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h2 style={{ fontSize: "1.2rem", fontWeight: 700 }}>Device Compliance Results</h2>
+              <h2 id="device-results-title" style={{ fontSize: "1.2rem", fontWeight: 700 }}>Device Compliance Results</h2>
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => setInspectRecord(null)}>
                 Close ✕
               </button>
@@ -394,7 +416,7 @@ export function FindingsPage({ refreshKey }: { readonly refreshKey: number }) {
               record={inspectRecord}
               onTrain={() => {}}
             />
-          </div>
+          </section>
         </div>
       )}
     </div>

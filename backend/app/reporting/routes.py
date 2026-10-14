@@ -368,7 +368,7 @@ def get_fleet_summary(
             fail_count=summary.get("fail", 0),
             unknown_count=summary.get("unknown", 0),
             unmapped_count=len(normalized.get("raw_unmapped_lines", [])),
-            last_scan=record.created_at.isoformat(),
+            last_scan=record.created_at.isoformat() if record.created_at else None,
         ))
 
     total = len(devices)

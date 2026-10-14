@@ -28,7 +28,11 @@ export const TAB_TITLES: Record<NavTab, { title: string; breadcrumb: string }> =
 };
 
 export function getRouteFromPath(pathname: string): RouteState {
-  const clean = pathname.toLowerCase().replace(/\/+$/, "") || "/";
+  let clean = pathname.toLowerCase().trim();
+  while (clean.length > 1 && clean.endsWith("/")) {
+    clean = clean.slice(0, -1);
+  }
+  if (!clean) clean = "/";
 
   switch (clean) {
     case "/configs":

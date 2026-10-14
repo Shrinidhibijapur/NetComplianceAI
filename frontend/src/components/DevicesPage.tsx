@@ -181,32 +181,40 @@ export function DevicesPage({
                     borderRadius: "var(--radius-md)",
                     overflow: "hidden",
                     transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-                    boxShadow: isOpen ? "0 4px 20px rgba(0,0,0,0.3)" : "none"
+                    boxShadow: isOpen ? "0 4px 20px rgba(0,0,0,0.3)" : "none",
                   }}
                 >
-                  <button
-                    type="button"
-                    aria-expanded={isOpen}
-                    aria-label={`${r.device_id} (${r.vendor}) details`}
-                    onClick={() => setExpanded(isOpen ? null : r.id)}
+                  <div
                     style={{
                       width: "100%",
-                      background: "none",
-                      border: "none",
                       padding: "1.25rem 1.5rem",
-                      cursor: "pointer",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
                       gap: "1.5rem",
                       userSelect: "none",
-                      font: "inherit",
-                      color: "inherit",
-                      textAlign: "left",
                     }}
                   >
-                    {/* Device Identifier & Vendor Info */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "1rem", flex: 1 }}>
+                    {/* Device Identifier & Vendor Info (Accordion Trigger) */}
+                    <button
+                      type="button"
+                      aria-expanded={isOpen}
+                      aria-label={`${r.device_id} (${r.vendor}) details`}
+                      onClick={() => setExpanded(isOpen ? null : r.id)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1rem",
+                        flex: 1,
+                        font: "inherit",
+                        color: "inherit",
+                        textAlign: "left",
+                      }}
+                    >
                       <div style={{
                         width: 42,
                         height: 42,
@@ -243,7 +251,7 @@ export function DevicesPage({
                           Ingested on {formatIndianDateTime(r.created_at)}
                         </div>
                       </div>
-                    </div>
+                    </button>
 
                     {/* Parser Status & Action Badges */}
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -334,23 +342,32 @@ export function DevicesPage({
                         )}
                       </div>
 
-                      {/* Expand Arrow Icon */}
-                      <div style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        background: "var(--bg-elevated)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "var(--text-secondary)",
-                        fontSize: "0.85rem",
-                        transition: "transform 0.2s ease"
-                      }}>
+                      {/* Expand Arrow Icon Button */}
+                      <button
+                        type="button"
+                        aria-expanded={isOpen}
+                        aria-label={isOpen ? `Collapse details for ${r.device_id}` : `Expand details for ${r.device_id}`}
+                        onClick={() => setExpanded(isOpen ? null : r.id)}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: "50%",
+                          background: "var(--bg-elevated)",
+                          border: "1px solid var(--border-subtle)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "var(--text-secondary)",
+                          fontSize: "0.85rem",
+                          cursor: "pointer",
+                          padding: 0,
+                          transition: "transform 0.2s ease"
+                        }}
+                      >
                         {isOpen ? "▲" : "▼"}
-                      </div>
+                      </button>
                     </div>
-                  </button>
+                  </div>
 
                   {/* Accordion Detail Area */}
                   {isOpen && (

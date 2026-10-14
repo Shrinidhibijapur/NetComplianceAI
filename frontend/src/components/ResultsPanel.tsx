@@ -43,13 +43,29 @@ export function ResultsPanel({
   const unknownCount = report?.summary.unknown ?? 0;
   const totalControls = passCount + failCount;
   const scorePct = totalControls ? Math.round((passCount / totalControls) * 100) : 0;
+  const scoreTheme = getScoreTheme(scorePct);
 
-  const scoreTheme =
-    scorePct >= 80
-      ? { color: "var(--status-pass)", label: "COMPLIANT", bg: "var(--status-pass-bg)", border: "rgba(16, 185, 129, 0.3)" }
-      : scorePct >= 50
-      ? { color: "var(--status-unknown)", label: "NEEDS ATTENTION", bg: "var(--status-unknown-bg)", border: "rgba(245, 158, 11, 0.3)" }
-      : { color: "var(--status-fail)", label: "NON-COMPLIANT", bg: "var(--status-fail-bg)", border: "rgba(239, 68, 68, 0.3)" };
+function getScoreTheme(score: number) {
+  if (score >= 80) {
+    return { color: "var(--status-pass)", label: "COMPLIANT", bg: "var(--status-pass-bg)", border: "rgba(16, 185, 129, 0.3)" };
+  }
+  if (score >= 50) {
+    return { color: "var(--status-unknown)", label: "NEEDS ATTENTION", bg: "var(--status-unknown-bg)", border: "rgba(245, 158, 11, 0.3)" };
+  }
+  return { color: "var(--status-fail)", label: "NON-COMPLIANT", bg: "var(--status-fail-bg)", border: "rgba(239, 68, 68, 0.3)" };
+}
+
+function getRemediationColor(status: string): string {
+  if (status === "pass") return "#10b981";
+  if (status === "not_applicable") return "var(--text-muted)";
+  return "var(--accent-primary)";
+}
+
+function getRemediationLabel(status: string): string {
+  if (status === "pass") return "Verified Baseline CLI Configuration";
+  if (status === "not_applicable") return "Reference CLI Command";
+  return "Remediation CLI Command";
+}
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -387,20 +403,14 @@ export function ResultsPanel({
                               gap: "0.35rem",
                               fontSize: "0.7rem",
                               fontWeight: 700,
-                              color: f.status === "pass" ? "#10b981" : f.status === "not_applicable" ? "var(--text-muted)" : "var(--accent-primary)",
+                              color: getRemediationColor(f.status),
                               textTransform: "uppercase",
                               letterSpacing: "0.05em",
                               marginBottom: "0.25rem",
                             }}
                           >
                             <Terminal style={{ width: 12, height: 12 }} />
-                            <span>
-                              {f.status === "pass"
-                                ? "Verified Baseline CLI Configuration"
-                                : f.status === "not_applicable"
-                                ? "Reference CLI Command"
-                                : "Remediation CLI Command"}
-                            </span>
+                            <span>{getRemediationLabel(f.status)}</span>
                           </div>
                           <pre
                             style={{

@@ -166,6 +166,39 @@ export function BootSequence({ onComplete }: { readonly onComplete: () => void }
               const isCompleted = idx < currentStep;
               const isCurrent = idx === currentStep;
 
+              let stepIcon = (
+                <div
+                  style={{
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    border: "1px solid var(--border-subtle)",
+                    backgroundColor: "var(--bg-elevated)",
+                  }}
+                />
+              );
+              if (isCompleted) {
+                stepIcon = <CheckCircle2 style={{ width: "16px", height: "16px", color: "var(--status-pass)" }} />;
+              } else if (isCurrent) {
+                stepIcon = (
+                  <Loader2
+                    style={{
+                      width: "16px",
+                      height: "16px",
+                      color: "var(--accent-primary)",
+                      animation: "spin 1s linear infinite",
+                    }}
+                  />
+                );
+              }
+
+              let stepColor = "var(--text-muted)";
+              if (isCompleted) {
+                stepColor = "var(--text-primary)";
+              } else if (isCurrent) {
+                stepColor = "var(--accent-primary)";
+              }
+
               return (
                 <div
                   key={step.label}
@@ -178,28 +211,7 @@ export function BootSequence({ onComplete }: { readonly onComplete: () => void }
                   }}
                 >
                   <div style={{ marginTop: "2px", flexShrink: 0 }}>
-                    {isCompleted ? (
-                      <CheckCircle2 style={{ width: "16px", height: "16px", color: "var(--status-pass)" }} />
-                    ) : isCurrent ? (
-                      <Loader2
-                        style={{
-                          width: "16px",
-                          height: "16px",
-                          color: "var(--accent-primary)",
-                          animation: "spin 1s linear infinite",
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: "16px",
-                          height: "16px",
-                          borderRadius: "50%",
-                          border: "1px solid var(--border-subtle)",
-                          backgroundColor: "var(--bg-elevated)",
-                        }}
-                      />
-                    )}
+                    {stepIcon}
                   </div>
 
                   <div>
@@ -207,11 +219,7 @@ export function BootSequence({ onComplete }: { readonly onComplete: () => void }
                       style={{
                         fontSize: "0.85rem",
                         fontWeight: 600,
-                        color: isCompleted
-                          ? "var(--text-primary)"
-                          : isCurrent
-                          ? "var(--accent-primary)"
-                          : "var(--text-muted)",
+                        color: stepColor,
                       }}
                     >
                       {step.label}

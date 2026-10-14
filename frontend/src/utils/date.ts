@@ -21,7 +21,7 @@ export function formatIndianDateTime(
   if (!dateVal) return "—";
   try {
     const d = parseUtcDate(dateVal);
-    if (isNaN(d.getTime())) return String(dateVal);
+    if (Number.isNaN(d.getTime())) return String(dateVal);
 
     const dateStr = d.toLocaleDateString("en-IN", {
       timeZone: "Asia/Kolkata",

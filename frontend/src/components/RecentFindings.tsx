@@ -63,18 +63,12 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
     content = (
       <div className="cc-findings-stack">
         {findings.slice(0, 5).map((f, idx) => (
-          <div
+          <button
+            type="button"
             key={`${f.configId}-${f.control_id}-${idx}`}
-            role="button"
-            tabIndex={0}
             onClick={() => onSelectFinding?.(f)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelectFinding?.(f);
-              }
-            }}
             className="cc-finding-card"
+            style={{ width: "100%", font: "inherit", color: "inherit", background: "none" }}
           >
             <div className="cc-finding-left">
               {getSeverityBadge(f.severity)}
@@ -108,7 +102,7 @@ export const RecentFindings: React.FC<RecentFindingsProps> = ({
               )}
               <ArrowRight style={{ width: "16px", height: "16px", color: "var(--text-muted)" }} />
             </div>
-          </div>
+          </button>
         ))}
       </div>
     );

@@ -118,6 +118,10 @@ def _is_platform_applicable(os_version: str | None, rule_platforms: list[str]) -
     return any(p.lower() in os_version.lower() for p in rule_platforms)
 
 
+_NO_SNMP_PUBLIC = "no snmp-server community public"
+_NTP_SERVER_CMD = "ntp server 10.0.0.1"
+_VENDOR_PREFIXES = ("sonic", "cisco", "juniper", "arista", "fortinet", "mikrotik")
+
 _COMMON_CLI_FIXES: dict[str, dict[str, str]] = {
     "telnet_enabled": {
         "juniper_junos": "delete system services telnet",
@@ -148,15 +152,15 @@ _COMMON_CLI_FIXES: dict[str, dict[str, str]] = {
     },
     "snmp_community_public": {
         "juniper_junos": "delete snmp community public",
-        "cisco_ios": "no snmp-server community public",
+        "cisco_ios": _NO_SNMP_PUBLIC,
         "sonic": "config snmp community del public",
-        "*": "no snmp-server community public",
+        "*": _NO_SNMP_PUBLIC,
     },
     "snmp_community_default": {
         "juniper_junos": "delete snmp community public\ndelete snmp community private",
-        "cisco_ios": "no snmp-server community public\nno snmp-server community private",
+        "cisco_ios": f"{_NO_SNMP_PUBLIC}\nno snmp-server community private",
         "sonic": "config snmp community del public\nconfig snmp community del private",
-        "*": "no snmp-server community public",
+        "*": _NO_SNMP_PUBLIC,
     },
     "syslog_server": {
         "juniper_junos": "set system syslog host 10.0.0.5 any any",
@@ -172,15 +176,15 @@ _COMMON_CLI_FIXES: dict[str, dict[str, str]] = {
     },
     "ntp_server": {
         "juniper_junos": "set system ntp server 10.0.0.1",
-        "cisco_ios": "ntp server 10.0.0.1",
+        "cisco_ios": _NTP_SERVER_CMD,
         "sonic": "config ntp add 10.0.0.1",
-        "*": "ntp server 10.0.0.1",
+        "*": _NTP_SERVER_CMD,
     },
     "ntp_configured": {
         "juniper_junos": "set system ntp server 10.0.0.1",
-        "cisco_ios": "ntp server 10.0.0.1",
+        "cisco_ios": _NTP_SERVER_CMD,
         "sonic": "config ntp add 10.0.0.1",
-        "*": "ntp server 10.0.0.1",
+        "*": _NTP_SERVER_CMD,
     },
     "acl_default_deny": {
         "juniper_junos": "set firewall filter PROTECT term deny-all then discard",
@@ -209,54 +213,38 @@ _COMMON_CLI_FIXES: dict[str, dict[str, str]] = {
 }
 
 
+def _is_vendor_key_match(k_clean: str, v_clean: str) -> bool:
+    if k_clean == v_clean or k_clean in v_clean or v_clean in k_clean:
+        return True
+    return any(p in k_clean and p in v_clean for p in _VENDOR_PREFIXES)
+
+
+def _find_vendor_remediation(remediation_map: dict[str, Any] | None, v_clean: str) -> Any:
+    if not remediation_map:
+        return None
+    for k, v in remediation_map.items():
+        k_clean = k.lower().replace("-", "_")
+        if _is_vendor_key_match(k_clean, v_clean):
+            return v
+    return remediation_map.get("*") or remediation_map.get("default")
+
+
 def _extract_remediation_info(
     remediation_dict: dict[str, Any], vendor: str, canonical_key: str = ""
 ) -> tuple[str | None, bool | None]:
-    rem_val = None
     v_clean = (vendor or "").lower().replace("-", "_")
-
-    if remediation_dict and vendor:
-        rem_val = remediation_dict.get(vendor)
-        if rem_val is None:
-            for k, v in remediation_dict.items():
-                k_clean = k.lower().replace("-", "_")
-                if k_clean == v_clean or k_clean in v_clean or v_clean in k_clean:
-                    rem_val = v
-                    break
-                for prefix in ("sonic", "cisco", "juniper", "arista", "fortinet", "mikrotik"):
-                    if prefix in k_clean and prefix in v_clean:
-                        rem_val = v
-                        break
-                if rem_val is not None:
-                    break
-        if rem_val is None:
-            rem_val = remediation_dict.get("*") or remediation_dict.get("default")
+    rem_val = _find_vendor_remediation(remediation_dict, v_clean) if (remediation_dict and vendor) else None
 
     if rem_val is None and canonical_key in _COMMON_CLI_FIXES:
-        fixes = _COMMON_CLI_FIXES[canonical_key]
-        for k, v in fixes.items():
-            k_clean = k.lower().replace("-", "_")
-            if k_clean == v_clean or k_clean in v_clean or v_clean in k_clean:
-                rem_val = v
-                break
-            for prefix in ("sonic", "cisco", "juniper", "arista", "fortinet", "mikrotik"):
-                if prefix in k_clean and prefix in v_clean:
-                    rem_val = v
-                    break
-            if rem_val is not None:
-                break
-        if rem_val is None:
-            rem_val = fixes.get("*")
+        rem_val = _find_vendor_remediation(_COMMON_CLI_FIXES[canonical_key], v_clean)
 
     if rem_val is None:
         return None, None
 
-    if isinstance(rem_val, str):
-        return rem_val, True
-
     if isinstance(rem_val, dict):
-        command = rem_val.get("command") or rem_val.get("cli") or rem_val.get("description")
-        return command, True
+        cmd = rem_val.get("command") or rem_val.get("cli") or rem_val.get("description")
+        verified = rem_val.get("verified")
+        return cmd, (True if verified is None else bool(verified))
 
     return str(rem_val), True
 
@@ -264,22 +252,16 @@ def _extract_remediation_info(
 def _generate_default_cli_fix(vendor: str, canonical_key: str, title: str, expected: Any) -> str:
     v = (vendor or "").lower()
     clean_k = (canonical_key or "setting").replace("_enabled", "").replace("_configured", "").replace("_", " ")
+    is_disable = ("disable" in title.lower()) or (expected is False) or ("no " in title.lower())
+
     if "juniper" in v:
-        if "disable" in title.lower() or expected is False or "no " in title.lower():
-            return f"delete system services {clean_k}"
-        return f"set system {clean_k} enable"
-    elif "cisco" in v:
-        if "disable" in title.lower() or expected is False or "no " in title.lower():
-            return f"no {clean_k}"
-        return f"{clean_k} enable"
-    elif "sonic" in v:
-        if "disable" in title.lower() or expected is False:
-            return f"config {clean_k.replace(' ', '-')} disable"
-        return f"config {clean_k.replace(' ', '-')} enable"
-    elif "arista" in v:
-        if "disable" in title.lower() or expected is False:
-            return f"no {clean_k}"
-        return f"{clean_k} enable"
+        return f"delete system services {clean_k}" if is_disable else f"set system {clean_k} enable"
+    if "cisco" in v or "arista" in v:
+        return f"no {clean_k}" if is_disable else f"{clean_k} enable"
+    if "sonic" in v:
+        hyphen_k = clean_k.replace(" ", "-")
+        return f"config {hyphen_k} disable" if is_disable else f"config {hyphen_k} enable"
+
     return f"# Enforce {clean_k}: security baseline for {title}"
 
 
@@ -291,12 +273,6 @@ def _evaluate_single_rule(
 ) -> Finding:
     ck = rule.canonical_key or rule.target_field or ""
     ctrl_id = rule.control_id or rule.rule_id or "RULE-0"
-
-    # Always prepare CLI remediation / baseline commands
-    rem_cmd, rem_verified = _extract_remediation_info(rule.remediation, vendor, canonical_key=ck)
-    if not rem_cmd:
-        rem_cmd = _generate_default_cli_fix(vendor, ck, rule.title, rule.expected)
-        rem_verified = True
 
     # 1. Vendor & Platform Applicability
     if not _is_vendor_applicable(vendor, rule.vendors) or not _is_platform_applicable(
@@ -316,8 +292,8 @@ def _evaluate_single_rule(
             severity=rule.severity,
             source=rule.source,
             verified=rule.verified,
-            remediation=rem_cmd,
-            remediation_verified=rem_verified,
+            remediation=None,
+            remediation_verified=None,
         )
 
     # 2. Key Presence & Missing Data Check (ABSENT != FALSE != UNKNOWN)
@@ -334,6 +310,13 @@ def _evaluate_single_rule(
         actual = controls[ck]
         is_pass = _evaluate_operator(rule.operator, actual, rule.expected)
         status = "pass" if is_pass else "fail"
+
+    rem_cmd, rem_verified = None, None
+    if status == "fail":
+        rem_cmd, rem_verified = _extract_remediation_info(rule.remediation, vendor, canonical_key=ck)
+        if not rem_cmd:
+            rem_cmd = _generate_default_cli_fix(vendor, ck, rule.title, rule.expected)
+            rem_verified = True
 
     return Finding(
         control_id=ctrl_id,

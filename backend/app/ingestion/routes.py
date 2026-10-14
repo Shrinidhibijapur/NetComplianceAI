@@ -205,7 +205,7 @@ def get_record(config_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
         "raw_config": record.raw_config,
         "parse_confidence": record.parse_confidence,
         "normalized": record.normalized,
-        "created_at": record.created_at.isoformat(),
+        "created_at": record.created_at.isoformat() if record.created_at else None,
     }
 
 
