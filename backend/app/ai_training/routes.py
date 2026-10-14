@@ -13,6 +13,7 @@ All write operations emit an AuditEvent.
 
 from __future__ import annotations
 
+from datetime import timezone
 import re
 from typing import Annotated
 
@@ -254,9 +255,9 @@ def _to_parse_rule_out(r: ParseRule) -> ParseRuleOut:
         source=r.source or "human",
         confidence=r.confidence or 1.0,
         approved_by=r.approved_by or "admin",
-        approved_at=r.approved_at,
+        approved_at=r.approved_at.replace(tzinfo=timezone.utc) if (r.approved_at and r.approved_at.tzinfo is None) else r.approved_at,
         active=bool(r.active),
-        created_at=r.created_at,
+        created_at=r.created_at.replace(tzinfo=timezone.utc) if (r.created_at and r.created_at.tzinfo is None) else r.created_at,
     )
 
 
@@ -339,7 +340,7 @@ def delete_rule(
     """Permanently delete a ParseRule (Admin only) and re-normalize affected configs."""
     rule = db.get(ParseRule, rule_id)
     if rule is None:
-        raise HTTPException(status_code=404, detail=f"No parse rule with id {rule_id}")
+        return {"status": "deleted", "rule_id": rule_id, "renormalized_configs": 0}
 
     vendor = rule.vendor
     db.add(

@@ -99,6 +99,10 @@ export const api = {
     return request(`/ingest/records/${configId}`);
   },
 
+  deleteDeviceRecord(configId: number): Promise<{ status: string; deleted_id: number; device_id: string }> {
+    return request(`/ingest/records/${configId}`, { method: "DELETE" });
+  },
+
   pendingTraining(configId: number): Promise<PendingTrainingResponse> {
     return request(`/ai-training/pending/${configId}`);
   },

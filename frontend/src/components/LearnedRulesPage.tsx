@@ -5,6 +5,7 @@ import { toast } from "../toast";
 import { PageHeader } from "./common/PageHeader";
 import { EmptyState } from "./common/EmptyState";
 import { TechnicalValue } from "./common/TechnicalValue";
+import { formatIndianDateTime } from "../utils/date";
 
 export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }) {
   const [rules, setRules] = useState<ParseRuleOut[]>([]);
@@ -17,10 +18,12 @@ export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }
     setError(null);
     try {
       const data = await api.listRules();
-      setRules(data.rules);
-      setTotal(data.total);
+      setRules(data.rules || []);
+      setTotal(data.total ?? (data.rules ? data.rules.length : 0));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      toast(msg, "error");
     } finally {
       setLoading(false);
     }
@@ -35,28 +38,31 @@ export function LearnedRulesPage({ refreshKey }: { readonly refreshKey: number }
 
   async function handleDisable(rule: ParseRuleOut) {
     try {
+      setRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, active: false } : r)));
       const res = await api.disableRule(rule.id);
       toast(
         `Rule #${rule.id} disabled — ${res.renormalized_configs} config(s) re-normalized.`,
         "success",
       );
-      await loadRules();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Failed to disable rule", "error");
+      await loadRules();
     }
   }
 
   async function handleDelete(rule: ParseRuleOut) {
     if (!confirm(`Delete rule #${rule.id} (${rule.target_field})? This cannot be undone.`)) return;
     try {
+      setRules((prev) => prev.filter((r) => r.id !== rule.id));
+      setTotal((prev) => Math.max(0, prev - 1));
       const res = await api.deleteRule(rule.id);
       toast(
         `Rule #${rule.id} deleted — ${res.renormalized_configs} config(s) re-normalized.`,
         "success",
       );
-      await loadRules();
     } catch (e) {
       toast(e instanceof Error ? e.message : "Failed to delete rule", "error");
+      await loadRules();
     }
   }
 
@@ -195,7 +201,7 @@ function RuleCard({
         </div>
 
         <span style={{ fontSize: "0.775rem", color: "var(--text-muted)" }}>
-          Approved {new Date(rule.approved_at).toLocaleString()}
+          Approved {formatIndianDateTime(rule.approved_at, { includeSeconds: true })}
         </span>
       </div>
 
@@ -280,8 +286,11 @@ function RuleCard({
               disabled={disabling}
               onClick={async () => {
                 setDisabling(true);
-                await onDisable(rule);
-                setDisabling(false);
+                try {
+                  await onDisable(rule);
+                } finally {
+                  setDisabling(false);
+                }
               }}
               style={{
                 background: "var(--bg-elevated)",
@@ -302,8 +311,11 @@ function RuleCard({
             disabled={deleting}
             onClick={async () => {
               setDeleting(true);
-              await onDelete(rule);
-              setDeleting(false);
+              try {
+                await onDelete(rule);
+              } finally {
+                setDeleting(false);
+              }
             }}
             style={{
               background: "rgba(239, 68, 68, 0.12)",

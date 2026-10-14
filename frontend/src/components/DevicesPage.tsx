@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { api } from "../api";
+import { toast } from "../toast";
 import type { ConfigSummary } from "../types";
 import { ConfidenceMeter } from "./Badges";
 import { ResultsPanel } from "./ResultsPanel";
 import { PageHeader } from "./common/PageHeader";
 import { EmptyState } from "./common/EmptyState";
 import { ReportDownloadButton } from "./ReportDownloadButton";
+import { formatIndianDateTime } from "../utils/date";
 
 export function DevicesPage({
   refreshKey,
@@ -38,6 +41,20 @@ export function DevicesPage({
   const totalDevices = records?.length ?? 0;
   const fullyParsedCount = useMemo(() => records?.filter(r => r.unmapped_count === 0).length ?? 0, [records]);
   const needsTrainingCount = useMemo(() => records?.filter(r => r.unmapped_count > 0).length ?? 0, [records]);
+
+  async function handleDeleteDevice(id: number, deviceId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to remove device "${deviceId}"?`)) {
+      return;
+    }
+    try {
+      await api.deleteDeviceRecord(id);
+      setRecords((prev) => (prev ? prev.filter((r) => r.id !== id) : null));
+      toast(`Removed device ${deviceId}`, "success");
+    } catch (err) {
+      toast(`Failed to remove device: ${err instanceof Error ? err.message : String(err)}`, "error");
+    }
+  }
 
   return (
     <div className="page" style={{ maxWidth: 1200, margin: "0 auto", padding: "1.5rem" }}>
@@ -223,14 +240,44 @@ export function DevicesPage({
                           </span>
                         </div>
                         <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: "0.2rem" }}>
-                          Ingested on {new Date(r.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          Ingested on {formatIndianDateTime(r.created_at)}
                         </div>
                       </div>
                     </div>
 
                     {/* Parser Status & Action Badges */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                       <ReportDownloadButton configId={r.id} deviceId={r.device_id} framework="CIS" variant="outline" />
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteDevice(r.id, r.device_id, e)}
+                        title={`Delete device ${r.device_id}`}
+                        style={{
+                          background: "var(--bg-elevated)",
+                          border: "1px solid var(--border-medium)",
+                          borderRadius: "var(--radius-sm)",
+                          color: "var(--text-muted)",
+                          padding: "0.4rem 0.55rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "var(--status-fail)";
+                          e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.4)";
+                          e.currentTarget.style.backgroundColor = "var(--status-fail-bg)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "var(--text-muted)";
+                          e.currentTarget.style.borderColor = "var(--border-medium)";
+                          e.currentTarget.style.backgroundColor = "var(--bg-elevated)";
+                        }}
+                      >
+                        <Trash2 style={{ width: 14, height: 14 }} />
+                      </button>
 
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: "0.725rem", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: "0.25rem" }}>

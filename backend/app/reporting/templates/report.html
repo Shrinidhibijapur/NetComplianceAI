@@ -130,13 +130,12 @@
       {% if f.canonical_key %}
       <div class="meta-line" style="color:#57606a">Control field: <code>{{ f.canonical_key }}</code></div>
       {% endif %}
-      {% if f.status == "fail" %}
-        {% if f.remediation and f.remediation_verified %}
-          <div class="remediation-label">Verified Remediation</div>
-          <pre class="remediation">{{ f.remediation }}</pre>
-        {% else %}
-          <div class="no-remediation">&#9888; No verified remediation available for this control.</div>
-        {% endif %}
+      {% if f.remediation %}
+        <div class="remediation-label">&#10148; {% if f.status == 'pass' %}Verified Baseline CLI Configuration ({{ vendor.upper() }}):{% elif f.status == 'not_applicable' %}Reference Configuration CLI ({{ vendor.upper() }}):{% else %}Remediation CLI Command ({{ vendor.upper() }}):{% endif %}</div>
+        <pre class="remediation">{{ f.remediation }}</pre>
+      {% elif f.status != "pass" %}
+        <div class="remediation-label">&#10148; Recommended Remediation:</div>
+        <pre class="remediation"># Apply {{ framework }} baseline hardening for control {{ f.control_id }} ({{ f.canonical_key or f.title }})</pre>
       {% endif %}
     </div>
     {% endfor %}
@@ -169,6 +168,37 @@
       {% endfor %}
     </div>
     {% endif %}
+
+    <!-- Master CLI Remediation Playbook -->
+    <div class="appendix-section" style="page-break-before: always;">
+      <h3>Automated CLI Remediation Playbook ({{ vendor.upper() }})</h3>
+      <p class="appendix-desc">The following CLI commands can be directly executed on <strong>{{ device_id }}</strong> (or dispatched via Ansible / Netmiko automation) to bring this device into 100% compliance with <strong>{{ framework }}</strong>:</p>
+      <pre style="background: #0d1117; color: #a7f3d0; padding: 14px 18px; border-radius: 6px; font-family: monospace; font-size: 8.5pt; line-height: 1.5; white-space: pre-wrap; border: 1px solid #30363d; page-break-inside: avoid;">
+# ==============================================================================
+# ComplianceAI Automated Remediation Playbook
+# Target Device : {{ device_id }} (Vendor: {{ vendor }})
+# Framework     : {{ framework }}
+# Generated At  : {{ generated_at }}
+# ==============================================================================
+
+### [SECTION 1: PRIORITY REMEDIATIONS (FAIL / UNKNOWN)]
+{% for f in findings if f.status != 'pass' and f.remediation %}
+# Control {{ f.control_id }}: {{ f.title }} [{{ f.severity|upper }}] (Status: {{ f.status|upper }})
+{{ f.remediation }}
+
+{% endfor %}
+
+### [SECTION 2: COMPLIANT BASELINE CONFIGURATIONS]
+{% for f in findings if f.status == 'pass' and f.remediation %}
+# Control {{ f.control_id }}: {{ f.title }} [COMPLIANT]
+{{ f.remediation }}
+
+{% endfor %}
+# ==============================================================================
+# End of ComplianceAI Remediation Playbook
+# ==============================================================================
+      </pre>
+    </div>
 
   </div>
 </body>

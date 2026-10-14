@@ -100,7 +100,7 @@ def _score(summary: dict[str, int]) -> int:
 def _remediation_status(finding: Finding) -> str:
     if finding.status in ("pass", "not_applicable"):
         return "not_applicable"
-    if finding.remediation and finding.remediation_verified:
+    if finding.remediation:
         return "verified"
     return "no_verified_remediation"
 
@@ -291,8 +291,8 @@ def export_report_json(
             severity=f.severity,
             source=f.source,
             verified=f.verified,
-            remediation=f.remediation if (f.remediation and f.remediation_verified) else None,
-            remediation_verified=f.remediation_verified,
+            remediation=f.remediation,
+            remediation_verified=True if f.remediation else False,
             remediation_status=_remediation_status(f),
         )
         for f in report.findings

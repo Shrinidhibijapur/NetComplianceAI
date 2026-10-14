@@ -1,5 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -34,7 +36,7 @@ def render_report_html(
         summary=report.summary,
         findings=report.findings,
         score=_score(report.summary),
-        generated_at=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        generated_at=datetime.now(IST).strftime("%Y-%m-%d %H:%M IST"),
     )
 
 
@@ -194,6 +196,68 @@ def _draw_learned_rules_appendix(pdf, learned_rules: list[dict], left: float, fu
         pdf.multi_cell(full_w - 8, 5, f"Pattern: {rule.get('pattern', 'n/a')}")
 
 
+def _draw_remediation_playbook(pdf, report: ComplianceReport, left: float, full_w: float) -> None:
+    remediation_findings = [f for f in report.findings if f.remediation]
+    if not remediation_findings:
+        return
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.set_x(left)
+    pdf.set_text_color(20, 20, 20)
+    pdf.cell(0, 8, f"Automated CLI Remediation Playbook ({report.vendor.upper()})", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "", 8.5)
+    pdf.set_text_color(*_MUTED_TEXT)
+    pdf.multi_cell(full_w, 5, f"Execute these CLI commands directly on {report.device_id} (or via Ansible/Netmiko) to resolve all non-compliant controls:")
+    pdf.ln(4)
+
+    actionable = [f for f in remediation_findings if f.status != "pass"]
+    compliant = [f for f in remediation_findings if f.status == "pass"]
+
+    if actionable:
+        pdf.set_x(left)
+        pdf.set_font("Helvetica", "B", 9.5)
+        pdf.set_text_color(*_DANGER)
+        pdf.cell(0, 6, "=== PRIORITY REMEDIATION COMMANDS ===", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+
+        for f in actionable:
+            if pdf.get_y() + 18 > pdf.page_break_trigger:
+                pdf.add_page()
+            pdf.set_x(left)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(*_ACCENT)
+            pdf.cell(0, 5, f"# Control {f.control_id}: {f.title} [{f.severity.upper()}] (Status: {f.status.upper()})", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_x(left + 4)
+            pdf.set_font("Courier", "B", 8.5)
+            pdf.set_text_color(20, 20, 20)
+            pdf.multi_cell(full_w - 6, 5, f.remediation)
+            pdf.ln(2)
+
+    if compliant:
+        if pdf.get_y() + 25 > pdf.page_break_trigger:
+            pdf.add_page()
+        pdf.ln(4)
+        pdf.set_x(left)
+        pdf.set_font("Helvetica", "B", 9.5)
+        pdf.set_text_color(*_OK)
+        pdf.cell(0, 6, "=== COMPLIANT BASELINE CONFIGURATIONS ===", new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+
+        for f in compliant:
+            if pdf.get_y() + 18 > pdf.page_break_trigger:
+                pdf.add_page()
+            pdf.set_x(left)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_text_color(*_OK)
+            pdf.cell(0, 5, f"# Control {f.control_id}: {f.title} [COMPLIANT]", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_x(left + 4)
+            pdf.set_font("Courier", "B", 8.5)
+            pdf.set_text_color(20, 20, 20)
+            pdf.multi_cell(full_w - 6, 5, f.remediation)
+            pdf.ln(2)
+
+
 def render_report_pdf_fallback(
     report: ComplianceReport,
     os_version: str | None = None,
@@ -211,7 +275,7 @@ def render_report_pdf_fallback(
     unmapped_lines = extra.get("unmapped_lines", [])
     learned_rules = extra.get("learned_rules", [])
 
-    generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    generated_at = datetime.now(IST).strftime("%Y-%m-%d %H:%M IST")
     score = _score(report.summary)
 
     class ComplianceReportPDF(FPDF):
@@ -264,6 +328,7 @@ def render_report_pdf_fallback(
     for finding in report.findings:
         _draw_finding_card(pdf, finding, left, full_w, content_w)
 
+    _draw_remediation_playbook(pdf, report, left, full_w)
     _draw_unmapped_appendix(pdf, unmapped_lines, left, full_w)
     _draw_learned_rules_appendix(pdf, learned_rules, left, full_w)
 
@@ -336,12 +401,19 @@ def _draw_finding_card(pdf, finding: Finding, left: float, full_w: float, conten
         pdf.set_x(x + 6)
         pdf.ln(1)
         pdf.set_x(x + 6)
-        pdf.set_font("Helvetica", "B", 8.5)
-        pdf.set_text_color(*_WARN)
-        pdf.cell(0, 5, "REMEDIATION", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "B", 8)
+        if finding.status == "pass":
+            pdf.set_text_color(*_OK)
+            pdf.cell(0, 5, "BASELINE CONFIGURATION CLI (VERIFIED):", new_x="LMARGIN", new_y="NEXT")
+        elif finding.status == "not_applicable":
+            pdf.set_text_color(*_MUTED_TEXT)
+            pdf.cell(0, 5, "REFERENCE CONFIGURATION CLI COMMAND:", new_x="LMARGIN", new_y="NEXT")
+        else:
+            pdf.set_text_color(*_WARN)
+            pdf.cell(0, 5, "EXACT REMEDIATION CLI COMMAND:", new_x="LMARGIN", new_y="NEXT")
         pdf.set_x(x + 6)
-        pdf.set_font("Helvetica", "", 8.5)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_font("Courier", "B", 8.5)
+        pdf.set_text_color(20, 20, 20)
         pdf.multi_cell(content_w - 6, 5, finding.remediation)
 
     pdf.set_text_color(0, 0, 0)

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { AuditEntry } from "../types";
 import { toast } from "../toast";
+import { formatIndianDateTime } from "../utils/date";
 
 export function AuditLogsPage({ refreshKey }: { readonly refreshKey?: number }) {
   const [logs, setLogs] = useState<AuditEntry[]>([]);
@@ -67,7 +68,7 @@ export function AuditLogsPage({ refreshKey }: { readonly refreshKey?: number }) 
             whiteSpace: "nowrap",
           }}
         >
-          {new Date(entry.timestamp).toLocaleString()}
+          {formatIndianDateTime(entry.timestamp, { includeSeconds: true })}
         </td>
         <td style={{ padding: "0.75rem 1rem", fontWeight: 600, color: "var(--accent-primary)" }}>
           {entry.actor}

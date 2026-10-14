@@ -7,6 +7,7 @@ import { TechnicalValue } from "./common/TechnicalValue";
 import { PosturePanel } from "./PosturePanel";
 import { RecentFindings } from "./RecentFindings";
 import { ReportDownloadButton } from "./ReportDownloadButton";
+import { formatIndianDateTime } from "../utils/date";
 
 interface CommandCenterPageProps {
   readonly onSelectTab: (tab: "upload" | "devices" | "findings" | "training" | "rules") => void;
@@ -164,7 +165,7 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
                   <span className="badge badge-pass">0 lines</span>
                 )}
               </td>
-              <td style={{ fontSize: "0.8rem" }}>{new Date(r.created_at).toLocaleString()}</td>
+              <td style={{ fontSize: "0.8rem" }}>{formatIndianDateTime(r.created_at)}</td>
               <td>
                 <ReportDownloadButton configId={r.id} deviceId={r.device_id} framework={framework} variant="compact" />
               </td>

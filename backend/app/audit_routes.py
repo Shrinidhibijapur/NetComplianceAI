@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -49,7 +50,7 @@ def list_audit_logs(
     events_out = [
         AuditEventOut(
             id=e.id,
-            created_at=e.created_at.isoformat(),
+            created_at=(e.created_at.replace(tzinfo=timezone.utc) if e.created_at.tzinfo is None else e.created_at).isoformat(),
             event_type=e.event_type,
             actor=e.actor,
             subject=e.subject,

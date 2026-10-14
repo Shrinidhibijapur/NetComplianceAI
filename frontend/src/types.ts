@@ -29,7 +29,7 @@ export interface ConfigSummary {
 }
 
 export type Severity = "low" | "medium" | "high";
-export type FindingStatus = "pass" | "fail" | "unknown";
+export type FindingStatus = "pass" | "fail" | "unknown" | "not_applicable";
 
 export interface Finding {
   control_id: string;

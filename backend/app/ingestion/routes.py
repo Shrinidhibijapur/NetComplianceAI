@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -160,7 +161,7 @@ def list_records(
                 vendor=r.vendor,
                 parse_confidence=r.parse_confidence,
                 unmapped_count=len((r.normalized or {}).get("raw_unmapped_lines", [])),
-                created_at=r.created_at.isoformat(),
+                created_at=(r.created_at.replace(tzinfo=timezone.utc) if r.created_at.tzinfo is None else r.created_at).isoformat(),
             )
             for r in records
         ]
@@ -180,7 +181,7 @@ def list_records(
             vendor=r.vendor,
             parse_confidence=r.parse_confidence,
             unmapped_count=len((r.normalized or {}).get("raw_unmapped_lines", [])),
-            created_at=r.created_at.isoformat(),
+            created_at=(r.created_at.replace(tzinfo=timezone.utc) if r.created_at.tzinfo is None else r.created_at).isoformat(),
         )
         for r in records
     ]
@@ -206,3 +207,28 @@ def get_record(config_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
         "normalized": record.normalized,
         "created_at": record.created_at.isoformat(),
     }
+
+
+@router.delete(
+    "/records/{config_id}",
+    responses={
+        404: {"description": "Config record not found"},
+    },
+)
+def delete_record(config_id: int, db: Annotated[Session, Depends(get_db)]) -> dict:
+    """Delete an ingested device configuration record."""
+    record = db.get(ConfigRecord, config_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"No config record with id {config_id}")
+    dev_id = record.device_id
+    db.delete(record)
+    log_event(
+        db,
+        "config_deleted",
+        subject=dev_id,
+        config_id=config_id,
+        status="success",
+        details={"deleted_id": config_id, "device_id": dev_id},
+    )
+    db.commit()
+    return {"status": "ok", "deleted_id": config_id, "device_id": dev_id}
