@@ -23,12 +23,9 @@ export function Topbar({ activeTab, onRefresh }: TopbarProps) {
       }}
     >
       <div>
-        <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "0.04em", marginBottom: "0.15rem" }}>
-          {info.breadcrumb}
-        </div>
-        <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>
+        <h1 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
           {info.title}
-        </div>
+        </h1>
       </div>
 
       <SystemStatus onRefresh={onRefresh} />
