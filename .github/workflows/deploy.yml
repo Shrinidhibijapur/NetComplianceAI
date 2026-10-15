@@ -1,0 +1,42 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main          # auto-deploy only on pushes to main
+
+jobs:
+  # ── Deploy to EC2 ───────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy Backend to EC2
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}        # your EC2 public IP
+          username: ${{ secrets.EC2_USER }}    # ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}      # contents of your .pem file
+          port: 22
+          script: |
+            set -e
+
+            echo "📦 Pulling latest code..."
+            cd ~/NetComplianceAI
+            git pull origin main
+
+            echo "🐳 Rebuilding and restarting containers..."
+            docker compose up --build -d
+
+            echo "⏳ Waiting for backend to be healthy..."
+            sleep 10
+
+            echo "✅ Health check..."
+            curl -f http://localhost:8000/health || exit 1
+
+            echo "🚀 Deployment complete!"
