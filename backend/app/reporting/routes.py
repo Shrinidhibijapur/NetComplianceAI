@@ -306,6 +306,41 @@ def export_report_json(
     )
 
 
+def _tally_failed_severities(findings: list[Finding]) -> tuple[int, int, int]:
+    high = med = low = 0
+    for f in findings:
+        if f.status == "fail":
+            if f.severity == "high":
+                high += 1
+            elif f.severity == "medium":
+                med += 1
+            else:
+                low += 1
+    return high, med, low
+
+
+def _build_device_posture(
+    record: ConfigRecord,
+    normalized: dict,
+    score: int,
+    summary: dict,
+) -> DevicePosture:
+    return DevicePosture(
+        config_id=record.id,
+        device_id=record.device_id,
+        vendor=record.vendor,
+        hostname=normalized.get("hostname"),
+        os_version=normalized.get("os_version"),
+        parse_confidence=record.parse_confidence,
+        compliance_score=score,
+        pass_count=summary.get("pass", 0),
+        fail_count=summary.get("fail", 0),
+        unknown_count=summary.get("unknown", 0),
+        unmapped_count=len(normalized.get("raw_unmapped_lines", [])),
+        last_scan=record.created_at.isoformat() if record.created_at else None,
+    )
+
+
 @router.get(
     "/fleet/summary",
     responses={
@@ -347,29 +382,12 @@ def get_fleet_summary(
         fleet_fail += summary.get("fail", 0)
         fleet_unknown += summary.get("unknown", 0)
 
-        for f in findings:
-            if f.status == "fail":
-                if f.severity == "high":
-                    sev_high += 1
-                elif f.severity == "medium":
-                    sev_medium += 1
-                else:
-                    sev_low += 1
+        h, m, l = _tally_failed_severities(findings)
+        sev_high += h
+        sev_medium += m
+        sev_low += l
 
-        devices.append(DevicePosture(
-            config_id=record.id,
-            device_id=record.device_id,
-            vendor=record.vendor,
-            hostname=normalized.get("hostname"),
-            os_version=normalized.get("os_version"),
-            parse_confidence=record.parse_confidence,
-            compliance_score=score,
-            pass_count=summary.get("pass", 0),
-            fail_count=summary.get("fail", 0),
-            unknown_count=summary.get("unknown", 0),
-            unmapped_count=len(normalized.get("raw_unmapped_lines", [])),
-            last_scan=record.created_at.isoformat() if record.created_at else None,
-        ))
+        devices.append(_build_device_posture(record, normalized, score, summary))
 
     total = len(devices)
     fleet_score = round(score_sum / total) if total > 0 else 0

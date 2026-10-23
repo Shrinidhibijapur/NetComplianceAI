@@ -265,6 +265,34 @@ def _generate_default_cli_fix(vendor: str, canonical_key: str, title: str, expec
     return f"# Enforce {clean_k}: security baseline for {title}"
 
 
+def _determine_control_status(
+    controls: dict, ck: str, operator: str | None, expected: Any
+) -> tuple[str, Any]:
+    if ck not in controls:
+        op = (operator or "equals").lower()
+        if op == "not_exists":
+            return "pass", None
+        if op == "exists":
+            return "fail", None
+        return "unknown", None
+
+    actual = controls[ck]
+    is_pass = _evaluate_operator(operator, actual, expected)
+    return ("pass" if is_pass else "fail"), actual
+
+
+def _resolve_remediation(
+    status: str, rule: ComplianceRule, vendor: str, ck: str
+) -> tuple[str | None, bool | None]:
+    if status != "fail":
+        return None, None
+    rem_cmd, rem_verified = _extract_remediation_info(rule.remediation, vendor, canonical_key=ck)
+    if not rem_cmd:
+        rem_cmd = _generate_default_cli_fix(vendor, ck, rule.title, rule.expected)
+        rem_verified = True
+    return rem_cmd, rem_verified
+
+
 def _evaluate_single_rule(
     controls: dict,
     vendor: str,
@@ -296,27 +324,11 @@ def _evaluate_single_rule(
             remediation_verified=None,
         )
 
-    # 2. Key Presence & Missing Data Check (ABSENT != FALSE != UNKNOWN)
-    if ck not in controls:
-        op = (rule.operator or "equals").lower()
-        if op == "not_exists":
-            status = "pass"
-        elif op == "exists":
-            status = "fail"
-        else:
-            status = "unknown"
-        actual = None
-    else:
-        actual = controls[ck]
-        is_pass = _evaluate_operator(rule.operator, actual, rule.expected)
-        status = "pass" if is_pass else "fail"
+    # 2. Key Presence & Operator Evaluation
+    status, actual = _determine_control_status(controls, ck, rule.operator, rule.expected)
 
-    rem_cmd, rem_verified = None, None
-    if status == "fail":
-        rem_cmd, rem_verified = _extract_remediation_info(rule.remediation, vendor, canonical_key=ck)
-        if not rem_cmd:
-            rem_cmd = _generate_default_cli_fix(vendor, ck, rule.title, rule.expected)
-            rem_verified = True
+    # 3. Remediation resolution
+    rem_cmd, rem_verified = _resolve_remediation(status, rule, vendor, ck)
 
     return Finding(
         control_id=ctrl_id,

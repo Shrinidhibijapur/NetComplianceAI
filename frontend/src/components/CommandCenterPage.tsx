@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { ConfigSummary, Finding } from "../types";
-import { PageHeader } from "./common/PageHeader";
 import { EmptyState } from "./common/EmptyState";
 import { TechnicalValue } from "./common/TechnicalValue";
 import { PosturePanel } from "./PosturePanel";
@@ -178,15 +177,26 @@ export function CommandCenterPage({ onSelectTab, refreshKey }: CommandCenterPage
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      <PageHeader
-        title="Network Security Command Center"
-        description="Monitor multi-vendor configuration health, parsing confidence, unmapped syntax queues, and security baseline compliance."
-        action={
-          <button type="button" className="btn btn-primary" onClick={() => onSelectTab("upload")}>
-            + Ingest Configuration
-          </button>
-        }
-      />
+      <div className="page-header-row">
+        <div>
+          <h1 className="page-title">Command center</h1>
+          <p className="page-subtitle">
+            Real-time posture overview across audited network infrastructure.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => onSelectTab("upload")}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+          Ingest configuration
+        </button>
+      </div>
 
       {/* KPI Grid */}
       <div className="kpi-grid">

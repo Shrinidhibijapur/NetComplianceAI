@@ -13,8 +13,13 @@ export function toast(message: string, kind: ToastKind = "info") {
   window.dispatchEvent(new CustomEvent<ToastPayload>(TOAST_EVENT, { detail: payload }));
 }
 
+toast.success = (message: string) => toast(message, "success");
+toast.error = (message: string) => toast(message, "error");
+toast.info = (message: string) => toast(message, "info");
+
 export function onToast(handler: (payload: ToastPayload) => void) {
   const listener = (e: Event) => handler((e as CustomEvent<ToastPayload>).detail);
   window.addEventListener(TOAST_EVENT, listener);
   return () => window.removeEventListener(TOAST_EVENT, listener);
 }
+

@@ -175,6 +175,14 @@ export const api = {
     });
   },
 
+  register(username: string, password: string, email?: string, role = "auditor"): Promise<{ access_token: string; token_type: string; role: string; username: string }> {
+    return request("/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password, email, role }),
+    });
+  },
+
   getCurrentUser(): Promise<{ username: string; role: string; is_active: boolean }> {
     return request("/auth/me");
   },

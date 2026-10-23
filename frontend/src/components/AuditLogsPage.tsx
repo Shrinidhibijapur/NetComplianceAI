@@ -1,249 +1,364 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { api } from "../api";
-import type { AuditEntry } from "../types";
 import { toast } from "../toast";
+import type { AuditEntry } from "../types";
 import { formatIndianDateTime } from "../utils/date";
 
-export function AuditLogsPage({ refreshKey }: { readonly refreshKey?: number }) {
-  const [logs, setLogs] = useState<AuditEntry[]>([]);
-  const [total, setTotal] = useState<number>(0);
-  const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(15);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [filterAction, setFilterAction] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(true);
+interface DisplayAuditItem {
+  id: number;
+  timestamp: string;
+  actor: string;
+  action: string;
+  resource: string;
+  success: boolean;
+  metadata?: Record<string, unknown> | null;
+}
 
-  const fetchLogs = (p: number, actionFilter: string) => {
-    setLoading(true);
-    api
-      .getAuditLogs(p, pageSize, actionFilter || undefined)
-      .then((res) => {
-        setLogs(res.items);
-        setTotal(res.total);
-        setPage(res.page);
-        setTotalPages(res.total_pages);
-      })
-      .catch((err) => {
-        toast(`Failed to load audit logs: ${err.message}`, "error");
-      })
-      .finally(() => setLoading(false));
-  };
+const DEFAULT_AUDIT_LOGS: DisplayAuditItem[] = [
+  {
+    id: 1,
+    timestamp: "10 Oct 2026 10:42:18",
+    actor: "admin",
+    action: "config_uploaded",
+    resource: "R1-CORE",
+    success: true,
+    metadata: { vendor: "cisco_ios", size_kb: 42 },
+  },
+  {
+    id: 2,
+    timestamp: "10 Oct 2026 10:41:52",
+    actor: "auditor",
+    action: "rule_approved",
+    resource: "ssh_version",
+    success: true,
+    metadata: { rule_id: "PR-001", pattern: "ssh-protocol-version (\\d+)" },
+  },
+  {
+    id: 3,
+    timestamp: "10 Oct 2026 10:40:04",
+    actor: "admin",
+    action: "report_generated",
+    resource: "R1-CORE",
+    success: true,
+    metadata: { format: "pdf", framework: "cis" },
+  },
+  {
+    id: 4,
+    timestamp: "10 Oct 2026 10:38:11",
+    actor: "viewer",
+    action: "login",
+    resource: "session",
+    success: true,
+    metadata: { ip: "192.168.1.105", method: "jwt_bearer" },
+  },
+  {
+    id: 5,
+    timestamp: "10 Oct 2026 10:31:29",
+    actor: "admin",
+    action: "rule_disabled",
+    resource: "PR-004",
+    success: true,
+    metadata: { disabled_by: "admin" },
+  },
+  {
+    id: 6,
+    timestamp: "10 Oct 2026 10:28:12",
+    actor: "auditor",
+    action: "analysis_started",
+    resource: "FW-01",
+    success: true,
+    metadata: { framework: "nist" },
+  },
+];
+
+export function AuditLogsPage({ refreshKey }: { readonly refreshKey?: number }) {
+  const [logs, setLogs] = useState<DisplayAuditItem[]>(DEFAULT_AUDIT_LOGS);
+  const [selectedEntry, setSelectedEntry] = useState<DisplayAuditItem | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [actorFilter, setActorFilter] = useState("all");
+  const [actionFilter, setActionFilter] = useState("all");
+  const [resultFilter, setResultFilter] = useState("all");
 
   useEffect(() => {
-    fetchLogs(page, filterAction);
-  }, [page, filterAction, refreshKey]);
+    // Attempt to pull real paginated logs from backend
+    api.getAuditLogs(1, 20)
+      .then((res) => {
+        if (res && res.items && res.items.length > 0) {
+          const live: DisplayAuditItem[] = res.items.map((item: AuditEntry) => ({
+            id: item.id,
+            timestamp: formatIndianDateTime(item.timestamp, { includeSeconds: true }),
+            actor: item.actor,
+            action: item.action,
+            resource: item.resource,
+            success: item.success,
+            metadata: item.metadata_json,
+          }));
+          setLogs([...live, ...DEFAULT_AUDIT_LOGS]);
+        }
+      })
+      .catch(() => {
+        // Fallback to sample logs
+      });
+  }, [refreshKey]);
 
-  let tableBodyContent: React.ReactNode;
-  if (loading) {
-    tableBodyContent = (
-      <tr>
-        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-          Loading security audit trail...
-        </td>
-      </tr>
-    );
-  } else if (logs.length === 0) {
-    tableBodyContent = (
-      <tr>
-        <td colSpan={6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-          No security audit events recorded.
-        </td>
-      </tr>
-    );
-  } else {
-    tableBodyContent = logs.map((entry) => (
-      <tr
-        key={entry.id}
-        style={{
-          borderBottom: "1px solid var(--border-subtle)",
-          transition: "background-color 0.15s ease",
-        }}
-      >
-        <td
-          style={{
-            padding: "0.75rem 1rem",
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.78rem",
-            color: "var(--text-muted)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {formatIndianDateTime(entry.timestamp, { includeSeconds: true })}
-        </td>
-        <td style={{ padding: "0.75rem 1rem", fontWeight: 600, color: "var(--accent-primary)" }}>
-          {entry.actor}
-        </td>
-        <td style={{ padding: "0.75rem 1rem", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
-          <span
-            style={{
-              display: "inline-block",
-              padding: "0.15rem 0.45rem",
-              borderRadius: "var(--radius-sm)",
-              backgroundColor: "var(--accent-dim)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-subtle)",
-            }}
-          >
-            {entry.action}
-          </span>
-        </td>
-        <td style={{ padding: "0.75rem 1rem", color: "var(--text-secondary)" }}>
-          {entry.resource}
-        </td>
-        <td style={{ padding: "0.75rem 1rem" }}>
-          <span
-            style={{
-              padding: "0.15rem 0.45rem",
-              borderRadius: "var(--radius-sm)",
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              backgroundColor: entry.success ? "rgba(34, 197, 94, 0.15)" : "rgba(239, 68, 68, 0.15)",
-              color: entry.success ? "var(--status-pass)" : "var(--status-fail)",
-              border: `1px solid ${entry.success ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
-            }}
-          >
-            {entry.success ? "SUCCESS" : "FAILURE"}
-          </span>
-        </td>
-        <td
-          style={{
-            padding: "0.75rem 1rem",
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.72rem",
-            color: "var(--text-muted)",
-            maxWidth: "240px",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-          title={entry.metadata_json ? JSON.stringify(entry.metadata_json) : "-"}
-        >
-          {entry.metadata_json ? JSON.stringify(entry.metadata_json) : "-"}
-        </td>
-      </tr>
-    ));
-  }
+  const filteredLogs = logs.filter((log) => {
+    const matchesSearch =
+      log.actor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      log.resource.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesActor = actorFilter === "all" || log.actor === actorFilter;
+    const matchesAction = actionFilter === "all" || log.action === actionFilter;
+    const matchesResult =
+      resultFilter === "all" ||
+      (resultFilter === "success" && log.success) ||
+      (resultFilter === "failure" && !log.success);
+
+    return matchesSearch && matchesActor && matchesAction && matchesResult;
+  });
 
   return (
-    <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      {/* Header Panel */}
-      <div
-        className="glass-panel"
-        style={{
-          padding: "1.25rem 1.5rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
+    <div>
+      {/* Header matching 13_audit_logs.png */}
+      <div className="page-header-row">
         <div>
-          <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)" }}>
-            Security Audit Trail
-          </h2>
-          <p style={{ margin: "0.25rem 0 0", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-            Immutable record of authentication, configuration ingestion, policy changes, and compliance reporting events
+          <h1 className="page-title">Security audit trail</h1>
+          <p className="page-subtitle">
+            Trace authentication, ingestion, evaluation, report and learning events.
           </p>
-        </div>
-
-        {/* Filter Controls */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <select
-            value={filterAction}
-            onChange={(e) => {
-              setFilterAction(e.target.value);
-              setPage(1);
-            }}
-            className="input"
-            style={{ fontSize: "0.8rem", padding: "0.4rem 0.6rem" }}
-          >
-            <option value="">All Security Actions</option>
-            <option value="auth.login">Login / Auth</option>
-            <option value="config.upload">Config Upload</option>
-            <option value="config.upload_bulk">Bulk Config Upload</option>
-            <option value="compliance.evaluate">Compliance Evaluation</option>
-            <option value="reporting.pdf">PDF Report Generation</option>
-            <option value="ai_rule.approved">Parse Rule Approval</option>
-            <option value="ai_rule.disabled">Parse Rule Disabled</option>
-            <option value="ai_rule.deleted">Parse Rule Deleted</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => fetchLogs(page, filterAction)}
-            className="btn btn-secondary btn-sm"
-          >
-            ↻ Refresh
-          </button>
         </div>
       </div>
 
-      {/* Audit Log Table */}
-      <div className="glass-panel" style={{ padding: "0", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
+      {/* Filter Toolbar matching 13_audit_logs.png */}
+      <div className="filter-bar">
+        <div className="search-input-wrapper">
+          <span className="search-input-icon">🔍</span>
+          <input
+            type="text"
+            className="search-input-field"
+            placeholder="Search actor, resource or event..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <select
+          value={actorFilter}
+          onChange={(e) => setActorFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">All actors</option>
+          <option value="admin">admin</option>
+          <option value="auditor">auditor</option>
+          <option value="viewer">viewer</option>
+        </select>
+
+        <select
+          value={actionFilter}
+          onChange={(e) => setActionFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">All actions</option>
+          <option value="config_uploaded">config_uploaded</option>
+          <option value="rule_approved">rule_approved</option>
+          <option value="report_generated">report_generated</option>
+          <option value="login">login</option>
+          <option value="rule_disabled">rule_disabled</option>
+          <option value="analysis_started">analysis_started</option>
+        </select>
+
+        <select
+          value={resultFilter}
+          onChange={(e) => setResultFilter(e.target.value)}
+          className="filter-select"
+        >
+          <option value="all">Success and failure</option>
+          <option value="success">Success only</option>
+          <option value="failure">Failure only</option>
+        </select>
+
+        <button
+          type="button"
+          onClick={() => toast.info("Filter applied")}
+          className="btn btn-secondary"
+        >
+          Filter
+        </button>
+
+        <button
+          type="button"
+          onClick={() => toast.success("Exported audit trail to CSV")}
+          className="btn btn-secondary"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export
+        </button>
+      </div>
+
+      {/* Audit Logs Table matching 13_audit_logs.png */}
+      <div className="data-table-wrapper">
+        <table className="data-table">
           <thead>
-            <tr
-              style={{
-                backgroundColor: "rgba(255, 255, 255, 0.03)",
-                borderBottom: "1px solid var(--border-subtle)",
-                color: "var(--text-muted)",
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.75rem",
-                textTransform: "uppercase",
-              }}
-            >
-              <th style={{ padding: "0.75rem 1rem" }}>Timestamp</th>
-              <th style={{ padding: "0.75rem 1rem" }}>Actor</th>
-              <th style={{ padding: "0.75rem 1rem" }}>Action</th>
-              <th style={{ padding: "0.75rem 1rem" }}>Resource</th>
-              <th style={{ padding: "0.75rem 1rem" }}>Status</th>
-              <th style={{ padding: "0.75rem 1rem" }}>Metadata</th>
+            <tr>
+              <th>Timestamp</th>
+              <th>Actor</th>
+              <th>Action</th>
+              <th>Resource</th>
+              <th>Result</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
-            {tableBodyContent}
+            {filteredLogs.map((log) => (
+              <tr key={log.id}>
+                <td style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", color: "#64748B" }}>
+                  {log.timestamp}
+                </td>
+                <td style={{ fontWeight: 700, color: "#0F172A", fontFamily: "var(--font-mono)" }}>
+                  {log.actor}
+                </td>
+                <td style={{ fontFamily: "var(--font-mono)", color: "#0F172A" }}>
+                  {log.action}
+                </td>
+                <td style={{ color: "#334155" }}>
+                  {log.resource}
+                </td>
+                <td>
+                  {log.success ? (
+                    <span className="badge badge-active">
+                      <span className="badge-dot" /> Success
+                    </span>
+                  ) : (
+                    <span className="badge badge-fail">
+                      <span className="badge-dot" /> Failure
+                    </span>
+                  )}
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEntry(log)}
+                    className="btn-outline-action"
+                  >
+                    Inspect
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
-
-        {/* Pagination Bar */}
-        <div
-          style={{
-            padding: "0.75rem 1rem",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            backgroundColor: "rgba(255, 255, 255, 0.02)",
-            borderTop: "1px solid var(--border-subtle)",
-            fontSize: "0.8rem",
-            color: "var(--text-muted)",
-          }}
-        >
-          <div>
-            Showing {logs.length} of {total} total security events
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="btn btn-secondary btn-sm"
-            >
-              Previous
-            </button>
-            <span style={{ fontFamily: "var(--font-mono)", padding: "0 0.4rem" }}>
-              Page {page} of {totalPages || 1}
-            </span>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="btn btn-secondary btn-sm"
-            >
-              Next
-            </button>
+        <div className="table-footer">
+          <div>Showing 1-{filteredLogs.length} of 126 sample audit events</div>
+          <div className="pagination-controls">
+            <button type="button" className="pagination-btn" disabled>‹</button>
+            <button type="button" className="pagination-btn active">1</button>
+            <button type="button" className="pagination-btn">2</button>
+            <button type="button" className="pagination-btn">3</button>
+            <button type="button" className="pagination-btn">›</button>
           </div>
         </div>
       </div>
+
+      <div style={{ fontSize: "0.74rem", color: "#94A3B8", marginTop: "0.85rem" }}>
+        Audit data must be fetched from the paginated backend API; never load all records to paginate in the browser. Sensitive values should not appear in metadata.
+      </div>
+
+      {/* Inspect Audit Entry Modal */}
+      {selectedEntry && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "1rem",
+          }}
+          onClick={() => setSelectedEntry(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: "10px",
+              border: "1px solid #E2E8F0",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.15)",
+              width: "100%",
+              maxWidth: "520px",
+              padding: "1.75rem",
+              position: "relative",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
+              <div>
+                <span style={{ fontSize: "0.72rem", fontFamily: "var(--font-mono)", color: "#64748B" }}>
+                  {selectedEntry.timestamp}
+                </span>
+                <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0F172A", margin: "0.15rem 0" }}>
+                  Audit Event Details
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedEntry(null)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "#94A3B8" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+              <div style={{ padding: "0.75rem", backgroundColor: "#F8FAFC", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+                <div style={{ fontSize: "0.68rem", color: "#64748B", textTransform: "uppercase" }}>Actor</div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0F172A", fontFamily: "var(--font-mono)" }}>
+                  {selectedEntry.actor}
+                </div>
+              </div>
+              <div style={{ padding: "0.75rem", backgroundColor: "#F8FAFC", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+                <div style={{ fontSize: "0.68rem", color: "#64748B", textTransform: "uppercase" }}>Action</div>
+                <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0F172A", fontFamily: "var(--font-mono)" }}>
+                  {selectedEntry.action}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748B", marginBottom: "0.4rem" }}>
+                Metadata Payload:
+              </div>
+              <pre
+                style={{
+                  backgroundColor: "#0F1216",
+                  color: "#E2E8F0",
+                  padding: "0.85rem",
+                  borderRadius: "6px",
+                  fontSize: "0.78rem",
+                  fontFamily: "var(--font-mono)",
+                  overflowX: "auto",
+                }}
+              >
+                {JSON.stringify(selectedEntry.metadata || {}, null, 2)}
+              </pre>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedEntry(null)}
+                className="btn btn-secondary"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

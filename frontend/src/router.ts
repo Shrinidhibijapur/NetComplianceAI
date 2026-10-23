@@ -10,21 +10,29 @@ export interface RouteState {
 export const TAB_TO_PATH: Record<NavTab, string> = {
   dashboard: "/command-center",
   upload: "/configs",
+  bulk: "/bulk-jobs",
   devices: "/devices",
   findings: "/compliance",
+  reports: "/reports",
   audit: "/audit-trail",
   training: "/ai-training",
   rules: "/learned-rules",
+  frameworks: "/frameworks",
+  security: "/security-users",
 };
 
 export const TAB_TITLES: Record<NavTab, { title: string; breadcrumb: string }> = {
-  dashboard: { title: "Network Security Command Center", breadcrumb: "Overview / Command Center" },
-  upload: { title: "Configuration Ingestion", breadcrumb: "Overview / Config Ingestion" },
-  devices: { title: "Audited Infrastructure Devices", breadcrumb: "Overview / Devices" },
-  findings: { title: "Compliance Audit & Findings", breadcrumb: "Compliance / Audit & Findings" },
-  audit: { title: "Security Audit Trail", breadcrumb: "Compliance / Audit Trail" },
-  training: { title: "AI Training & Learning Loop", breadcrumb: "Intelligence / AI Training" },
-  rules: { title: "Active Learned Extraction Rules", breadcrumb: "Intelligence / Learned Rules" },
+  dashboard: { title: "Command Center", breadcrumb: "ComplianceAI  /  Command Center" },
+  upload: { title: "Configuration Ingestion", breadcrumb: "ComplianceAI  /  Configuration ingestion" },
+  bulk: { title: "Bulk Processing Jobs", breadcrumb: "ComplianceAI  /  Bulk processing jobs" },
+  devices: { title: "Infrastructure Devices", breadcrumb: "ComplianceAI  /  Infrastructure devices" },
+  findings: { title: "Compliance Findings", breadcrumb: "ComplianceAI  /  Compliance findings" },
+  reports: { title: "Reports and Exports", breadcrumb: "ComplianceAI  /  Reports and exports" },
+  audit: { title: "Security Audit Trail", breadcrumb: "ComplianceAI  /  Security audit trail" },
+  training: { title: "AI Training Studio", breadcrumb: "ComplianceAI  /  AI training studio" },
+  rules: { title: "Learned Rules Registry", breadcrumb: "ComplianceAI  /  Learned rules registry" },
+  frameworks: { title: "Compliance Frameworks", breadcrumb: "ComplianceAI  /  Compliance frameworks" },
+  security: { title: "Security and Users", breadcrumb: "ComplianceAI  /  Security and users" },
 };
 
 export function getRouteFromPath(pathname: string): RouteState {
@@ -40,12 +48,19 @@ export function getRouteFromPath(pathname: string): RouteState {
     case "/config-ingestion":
       return { entered: true, tab: "upload" };
 
+    case "/bulk-jobs":
+    case "/bulk":
+      return { entered: true, tab: "bulk" };
+
     case "/devices":
       return { entered: true, tab: "devices" };
 
     case "/compliance":
     case "/findings":
       return { entered: true, tab: "findings" };
+
+    case "/reports":
+      return { entered: true, tab: "reports" };
 
     case "/audit-trail":
     case "/audit":
@@ -59,6 +74,14 @@ export function getRouteFromPath(pathname: string): RouteState {
     case "/learned-rules":
     case "/rules":
       return { entered: true, tab: "rules" };
+
+    case "/frameworks":
+      return { entered: true, tab: "frameworks" };
+
+    case "/security-users":
+    case "/security":
+    case "/users":
+      return { entered: true, tab: "security" };
 
     case "/command-center":
     case "/dashboard":

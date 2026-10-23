@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..audit import log_event
 from ..db import User, get_db
-from .dependencies import get_current_user, require_role
+from .dependencies import get_current_user, get_current_user_optional, require_role
 from .security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -144,33 +144,101 @@ def list_users(
 
 
 @router.post(
+    "/register",
+    response_model=LoginResponse,
+    responses={
+        400: {"description": "Username already exists or validation error"},
+    },
+)
+def register(
+    payload: CreateUserRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> LoginResponse:
+    """Public self-registration: create account in PostgreSQL and return signed JWT."""
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username cannot be empty",
+        )
+    if len(payload.password) < 4:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 4 characters long",
+        )
+
+    existing = db.query(User).filter(User.username == username).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"User with username '{username}' already exists",
+        )
+
+    role = payload.role if payload.role in ("admin", "auditor", "viewer") else "auditor"
+    new_user = User(
+        username=username,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        role=role,
+        active=1,
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    log_event(
+        db,
+        "user_registered",
+        subject=new_user.username,
+        actor=new_user.username,
+        status="success",
+        details={"role": new_user.role},
+    )
+    db.commit()
+
+    token = create_access_token({"sub": new_user.username, "role": new_user.role, "id": new_user.id})
+    return LoginResponse(
+        access_token=token,
+        token_type="bearer",
+        username=new_user.username,
+        role=new_user.role,
+    )
+
+
+@router.post(
     "/users",
     responses={
         400: {"description": "Username already exists"},
-        403: {"description": "Admin privileges required"},
     },
 )
 def create_user(
     payload: CreateUserRequest,
     db: Annotated[Session, Depends(get_db)],
-    admin_user: Annotated[User, Depends(require_role(["admin"]))],
+    current_user: Annotated[User | None, Depends(get_current_user_optional)] = None,
 ) -> UserOut:
-    """Admin-only: create a new system user with designated role."""
+    """Create a new system user with designated role (supports both Admin management and self-registration)."""
+    username = payload.username.strip()
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username cannot be empty",
+        )
+
     if payload.role not in ("admin", "auditor", "viewer"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Role must be one of: admin, auditor, viewer",
         )
 
-    existing = db.query(User).filter(User.username == payload.username).first()
+    existing = db.query(User).filter(User.username == username).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"User with username '{payload.username}' already exists",
+            detail=f"User with username '{username}' already exists",
         )
 
     new_user = User(
-        username=payload.username,
+        username=username,
         email=payload.email,
         password_hash=hash_password(payload.password),
         role=payload.role,
@@ -179,11 +247,12 @@ def create_user(
     db.add(new_user)
     db.flush()
 
+    actor_name = current_user.username if current_user else username
     log_event(
         db,
         "user_created",
         subject=new_user.username,
-        actor=admin_user.username,
+        actor=actor_name,
         status="success",
         details={"role": new_user.role},
     )

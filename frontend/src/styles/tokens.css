@@ -1,56 +1,87 @@
-/* Enterprise Cybersecurity Console Design Tokens */
+/* Enterprise Cybersecurity Console Design Tokens (Asset-matched 2026 specification) */
 :root {
-  /* Colors */
-  --bg-root: #080C12;
-  --bg-sidebar: #0D131B;
-  --bg-surface: #111923;
-  --bg-surface-hover: #151E28;
-  --bg-elevated: #1B2632;
-  --bg-card: #111923;
+  /* Canvas & Surfaces */
+  --bg-root: #F8FAFC;
+  --bg-canvas: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --bg-surface-subtle: #F1F5F9;
+  --bg-surface-hover: #F8FAFC;
+  --bg-elevated: #FFFFFF;
+  --bg-card: #FFFFFF;
 
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.14);
-  --border-accent: rgba(56, 189, 248, 0.3);
+  /* Sidebar (Obsidian Charcoal Dark) */
+  --bg-sidebar: #0F1216;
+  --bg-sidebar-hover: #1A1F26;
+  --bg-sidebar-active: #FFFFFF;
+  --text-sidebar: #94A3B8;
+  --text-sidebar-hover: #F8FAFC;
+  --text-sidebar-active: #0F1216;
+  --border-sidebar: #1E232B;
 
-  --accent-primary: #38BDF8;
-  --accent-primary-hover: #0EA5E9;
-  --accent-dim: rgba(56, 189, 248, 0.12);
+  /* Borders */
+  --border-subtle: #E2E8F0;
+  --border-medium: #CBD5E1;
+  --border-dark: #1E232B;
+  --border-accent: #0F1216;
+
+  /* Accent & Action (Obsidian Primary, Emerald Accent) */
+  --accent-primary: #0F1216;
+  --accent-primary-hover: #1E293B;
+  --accent-emerald: #10B981;
+  --accent-emerald-hover: #059669;
+  --accent-dim: rgba(16, 185, 129, 0.1);
 
   /* Status Colors */
-  --status-pass: #10B981;
-  --status-pass-bg: rgba(16, 185, 129, 0.12);
-  --status-fail: #EF4444;
-  --status-fail-bg: rgba(239, 68, 68, 0.12);
-  --status-unknown: #F59E0B;
-  --status-unknown-bg: rgba(245, 158, 11, 0.12);
-  --status-unmapped: #9CA3AF;
-  --status-unmapped-bg: rgba(156, 163, 175, 0.12);
-  --status-info: #06B6D4;
-  --status-info-bg: rgba(6, 182, 212, 0.12);
+  --status-pass: #059669;
+  --status-pass-bg: #ECFDF5;
+  --status-pass-border: #A7F3D0;
 
-  /* Severity Colors */
-  --severity-high: #EF4444;
-  --severity-high-bg: rgba(239, 68, 68, 0.15);
-  --severity-medium: #F59E0B;
-  --severity-medium-bg: rgba(245, 158, 11, 0.15);
-  --severity-low: #3B82F6;
-  --severity-low-bg: rgba(59, 130, 246, 0.15);
+  --status-fail: #DC2626;
+  --status-fail-bg: #FEF2F2;
+  --status-fail-border: #FECACA;
+
+  --status-unknown: #D97706;
+  --status-unknown-bg: #FFFBEB;
+  --status-unknown-border: #FDE68A;
+
+  --status-unmapped: #64748B;
+  --status-unmapped-bg: #F1F5F9;
+  --status-unmapped-border: #E2E8F0;
+
+  --status-active: #059669;
+  --status-active-bg: #F0FDF4;
+  --status-active-border: #BBF7D0;
+
+  --status-disabled: #64748B;
+  --status-disabled-bg: #F8FAFC;
+  --status-disabled-border: #E2E8F0;
+
+  /* Severities */
+  --severity-high: #DC2626;
+  --severity-high-bg: #FEF2F2;
+  --severity-medium: #D97706;
+  --severity-medium-bg: #FFFBEB;
+  --severity-low: #2563EB;
+  --severity-low-bg: #EFF6FF;
 
   /* Typography */
-  --text-primary: #E6EDF3;
-  --text-secondary: #A8B3C2;
-  --text-muted: #718096;
-  --text-inverse: #080C12;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --text-inverse: #FFFFFF;
 
-  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Consolas, Menlo, monospace;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
 
-  /* Spacing & Layout */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
+  /* Spacing & Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  /* Subtle Shadows for Light Canvas */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
 }
+

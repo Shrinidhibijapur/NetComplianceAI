@@ -4,6 +4,28 @@ import { api } from "../api";
 import type { ComplianceReport, ConfigSummary } from "../types";
 import { SeverityBadge, StatusBadge } from "./Badges";
 
+function getScoreTheme(score: number) {
+  if (score >= 80) {
+    return { color: "var(--status-pass)", label: "COMPLIANT", bg: "var(--status-pass-bg)", border: "rgba(16, 185, 129, 0.3)" };
+  }
+  if (score >= 50) {
+    return { color: "var(--status-unknown)", label: "NEEDS ATTENTION", bg: "var(--status-unknown-bg)", border: "rgba(245, 158, 11, 0.3)" };
+  }
+  return { color: "var(--status-fail)", label: "NON-COMPLIANT", bg: "var(--status-fail-bg)", border: "rgba(239, 68, 68, 0.3)" };
+}
+
+function getRemediationColor(status: string): string {
+  if (status === "pass") return "#10b981";
+  if (status === "not_applicable") return "var(--text-muted)";
+  return "var(--accent-primary)";
+}
+
+function getRemediationLabel(status: string): string {
+  if (status === "pass") return "Verified Baseline CLI Configuration";
+  if (status === "not_applicable") return "Reference CLI Command";
+  return "Remediation CLI Command";
+}
+
 export function ResultsPanel({
   record,
   onTrain,
@@ -44,28 +66,6 @@ export function ResultsPanel({
   const totalControls = passCount + failCount;
   const scorePct = totalControls ? Math.round((passCount / totalControls) * 100) : 0;
   const scoreTheme = getScoreTheme(scorePct);
-
-function getScoreTheme(score: number) {
-  if (score >= 80) {
-    return { color: "var(--status-pass)", label: "COMPLIANT", bg: "var(--status-pass-bg)", border: "rgba(16, 185, 129, 0.3)" };
-  }
-  if (score >= 50) {
-    return { color: "var(--status-unknown)", label: "NEEDS ATTENTION", bg: "var(--status-unknown-bg)", border: "rgba(245, 158, 11, 0.3)" };
-  }
-  return { color: "var(--status-fail)", label: "NON-COMPLIANT", bg: "var(--status-fail-bg)", border: "rgba(239, 68, 68, 0.3)" };
-}
-
-function getRemediationColor(status: string): string {
-  if (status === "pass") return "#10b981";
-  if (status === "not_applicable") return "var(--text-muted)";
-  return "var(--accent-primary)";
-}
-
-function getRemediationLabel(status: string): string {
-  if (status === "pass") return "Verified Baseline CLI Configuration";
-  if (status === "not_applicable") return "Reference CLI Command";
-  return "Remediation CLI Command";
-}
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>

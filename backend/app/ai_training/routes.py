@@ -340,7 +340,7 @@ def delete_rule(
     """Permanently delete a ParseRule (Admin only) and re-normalize affected configs."""
     rule = db.get(ParseRule, rule_id)
     if rule is None:
-        return {"status": "deleted", "rule_id": rule_id, "renormalized_configs": 0}
+        raise HTTPException(status_code=404, detail=f"No parse rule with id {rule_id}")
 
     vendor = rule.vendor
     db.add(

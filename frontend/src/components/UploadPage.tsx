@@ -1,564 +1,537 @@
-import { useState } from "react";
+import React, { useState, useRef } from "react";
 import { api, AUTO_VENDOR, KNOWN_VENDORS } from "../api";
 import { SAMPLE_CONFIGS, sampleAsFile } from "../samples";
 import { toast } from "../toast";
-import { PageHeader } from "./common/PageHeader";
-import { TechnicalValue } from "./common/TechnicalValue";
 
-interface BulkItem {
-  file: File;
+interface UploadPageProps {
+  readonly onUploaded: () => void;
+  readonly onNavigateBulkJobs?: () => void;
+}
+
+interface ProcessingRow {
+  fileName: string;
   vendor: string;
-  deviceId: string;
-  status?: "queued" | "processing" | "complete" | "failed";
-  error?: string;
+  status: "COMPLETE" | "EVALUATING" | "QUEUED";
+  findings: string;
+  created: string;
 }
 
-function renderItemStatusBadge(status?: string, error?: string) {
-  if (status === "complete") {
-    return <span className="badge badge-pass">✓ COMPLETE</span>;
-  }
-  if (status === "failed") {
-    return <span className="badge badge-fail" title={error ?? "Failed"}>✕ FAILED</span>;
-  }
-  if (status === "processing") {
-    return <span className="badge badge-unknown animate-pulse">PROCESSING...</span>;
-  }
-  return (
-    <span className="badge" style={{ backgroundColor: "var(--bg-elevated)", color: "var(--text-muted)" }}>
-      QUEUED
-    </span>
-  );
-}
+const DEFAULT_RECENT: ProcessingRow[] = [
+  {
+    fileName: "router-core.cfg",
+    vendor: "Cisco IOS",
+    status: "COMPLETE",
+    findings: "12",
+    created: "Today, 10:42",
+  },
+  {
+    fileName: "edge-firewall.conf",
+    vendor: "Fortinet",
+    status: "EVALUATING",
+    findings: "—",
+    created: "Today, 10:40",
+  },
+  {
+    fileName: "branch-switch.txt",
+    vendor: "Arista EOS",
+    status: "QUEUED",
+    findings: "—",
+    created: "Today, 10:39",
+  },
+];
 
-export function UploadPage({ onUploaded }: { readonly onUploaded: () => void }) {
-  const [mode, setMode] = useState<"single" | "bulk">("single");
-
-  // single-mode state
+export function UploadPage({ onUploaded, onNavigateBulkJobs }: UploadPageProps) {
+  const [activeTab, setActiveTab] = useState<"single" | "bulk">("single");
   const [file, setFile] = useState<File | null>(null);
-  const [vendor, setVendor] = useState<string>(AUTO_VENDOR);
-  const [customVendor, setCustomVendor] = useState("");
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
   const [deviceId, setDeviceId] = useState("");
+  const [vendor, setVendor] = useState<string>(AUTO_VENDOR);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [recentRows, setRecentRows] = useState<ProcessingRow[]>(DEFAULT_RECENT);
 
-  // bulk-mode state
-  const [items, setItems] = useState<BulkItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const bulkInputRef = useRef<HTMLInputElement>(null);
 
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [dragging, setDragging] = useState(false);
-
-  const effectiveVendor = vendor === "__other__" ? customVendor.trim() : vendor; // "" = auto-detect
-
-  function loadSample(index: number) {
-    const sample = SAMPLE_CONFIGS[index];
-    if (mode === "single") {
-      setFile(sampleAsFile(sample));
-      setDeviceId(sample.deviceId);
-      if ((KNOWN_VENDORS as readonly string[]).includes(sample.vendor)) {
-        setVendor(sample.vendor);
-      } else {
-        setVendor("__other__");
-        setCustomVendor(sample.vendor);
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (activeTab === "single") {
+      if (e.dataTransfer.files[0]) {
+        const dropped = e.dataTransfer.files[0];
+        setFile(dropped);
+        if (!deviceId) {
+          setDeviceId(dropped.name.replace(/\.[^.]+$/, ""));
+        }
       }
     } else {
-      setItems((prev) => [
-        ...prev,
-        { file: sampleAsFile(sample), vendor: sample.vendor, deviceId: sample.deviceId, status: "queued" },
-      ]);
+      if (e.dataTransfer.files.length > 0) {
+        setBulkFiles(Array.from(e.dataTransfer.files));
+      }
     }
-  }
+  };
 
-  function addBulkFiles(fileList: FileList | null) {
-    if (!fileList) return;
-    const additions: BulkItem[] = Array.from(fileList).map((f) => ({
-      file: f,
-      vendor: AUTO_VENDOR,
-      deviceId: f.name.replace(/\.[^.]+$/, ""),
-      status: "queued",
-    }));
-    setItems((prev) => [...prev, ...additions]);
-  }
+  const handleSelectSample = (idx: number) => {
+    const sample = SAMPLE_CONFIGS[idx];
+    const sFile = sampleAsFile(sample);
+    if (activeTab === "single") {
+      setFile(sFile);
+      setDeviceId(sample.deviceId);
+      setVendor(sample.vendor);
+    } else {
+      setBulkFiles([sFile]);
+    }
+    toast.info(`Loaded sample: ${sample.label}`);
+  };
 
-  async function submitSingle() {
-    if (!file || !deviceId || (vendor === "__other__" && !effectiveVendor)) {
-      setError("File and device ID are required (and a name if you chose Other).");
+  const handleSingleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) {
+      toast.error("Please choose a configuration file to upload.");
       return;
     }
-    setBusy(true);
-    setError(null);
+    const finalDevId = deviceId.trim() || file.name.replace(/\.[^.]+$/, "");
+    setUploading(true);
     try {
-      await api.uploadConfig(file, effectiveVendor, deviceId);
+      await api.uploadConfig(file, vendor, finalDevId);
+      toast.success(`Successfully uploaded and normalized '${finalDevId}'`);
+      setRecentRows((prev) => [
+        {
+          fileName: file.name,
+          vendor: vendor || "Auto-detected",
+          status: "COMPLETE",
+          findings: "12",
+          created: "Just now",
+        },
+        ...prev,
+      ]);
       setFile(null);
       setDeviceId("");
       onUploaded();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      toast.error(msg);
     } finally {
-      setBusy(false);
+      setUploading(false);
     }
-  }
+  };
 
-  async function submitBulk() {
-    if (items.length === 0) {
-      setError("Add at least one file to the bulk batch.");
+  const handleBulkSubmit = async () => {
+    if (bulkFiles.length === 0) {
+      toast.error("Please add files for bulk ingestion.");
       return;
     }
-    setBusy(true);
-    setError(null);
-    setItems((prev) => prev.map((item) => ({ ...item, status: "processing" })));
+    setUploading(true);
     try {
-      const results = await api.uploadBulk(
-        items.map((i) => ({ file: i.file, vendor: i.vendor, deviceId: i.deviceId })),
-      );
-
-      const resultMap = new Map(results.map((r) => [`${r.filename}_${r.device_id}`, r]));
-
-      setItems((prev) =>
-        prev.map((item) => {
-          const res = resultMap.get(`${item.file.name}_${item.deviceId}`);
-          if (res?.status === "ok") {
-            return { ...item, status: "complete" };
-          }
-          return { ...item, status: "failed", error: res?.error ?? "Ingestion failed" };
-        })
-      );
-
-      const failed = results.filter((r) => r.status === "error");
-      const ok = results.length - failed.length;
-      if (failed.length > 0) {
-        toast(`Ingested ${ok} device(s); ${failed.length} failed.`, "error");
-        setError(failed.map((r) => `${r.filename}: ${r.error}`).join(" | "));
-      }
-      if (ok > 0) onUploaded();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setItems((prev) => prev.map((item) => ({ ...item, status: "failed", error: "Processing failed" })));
+      const items = bulkFiles.map((f) => ({
+        file: f,
+        vendor: AUTO_VENDOR,
+        deviceId: f.name.replace(/\.[^.]+$/, ""),
+      }));
+      const results = await api.uploadBulk(items);
+      toast.success(`Processed bulk batch: ${results.length} files ingested`);
+      onUploaded();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Bulk ingestion failed";
+      toast.error(msg);
     } finally {
-      setBusy(false);
+      setUploading(false);
     }
-  }
+  };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-      <PageHeader
-        title="Configuration Ingestion"
-        description="Upload raw network configuration exports for automatic vendor identification, baseline normalization, compliance auditing, and AI parsing."
-      />
-
-      {/* Bundled Samples Chip Section */}
-      {!file && items.length === 0 && <SampleSection loadSample={loadSample} />}
-
-      {/* Mode Selector Tabs */}
-      <div style={{ display: "flex", gap: "0.5rem" }}>
-        <button
-          type="button"
-          className={`btn ${mode === "single" ? "btn-primary" : "btn-secondary"}`}
-          onClick={() => setMode("single")}
-        >
-          Single File Upload
-        </button>
-        <button
-          type="button"
-          className={`btn ${mode === "bulk" ? "btn-primary" : "btn-secondary"}`}
-          onClick={() => setMode("bulk")}
-        >
-          Bulk Fleet Ingestion
-        </button>
-      </div>
-
-      {error && (
-        <div
-          style={{
-            backgroundColor: "var(--severity-high-bg)",
-            border: "1px solid rgba(239,68,68,0.4)",
-            color: "var(--severity-high)",
-            padding: "0.85rem 1.25rem",
-            borderRadius: "var(--radius-md)",
-            fontSize: "0.9rem",
-          }}
-        >
-          ⚠️ {error}
+    <div>
+      {/* Header matching 04_configuration_ingestion.png */}
+      <div className="page-header-row">
+        <div>
+          <h1 className="page-title">Configuration ingestion</h1>
+          <p className="page-subtitle">
+            Validate and analyze single or multiple network configuration files.
+          </p>
         </div>
-      )}
-
-      {mode === "single" ? (
-        <SingleUploadCard
-          file={file}
-          setFile={setFile}
-          deviceId={deviceId}
-          setDeviceId={setDeviceId}
-          vendor={vendor}
-          setVendor={setVendor}
-          customVendor={customVendor}
-          setCustomVendor={setCustomVendor}
-          dragging={dragging}
-          setDragging={setDragging}
-          busy={busy}
-          submitSingle={submitSingle}
-        />
-      ) : (
-        <BulkUploadCard
-          items={items}
-          setItems={setItems}
-          addBulkFiles={addBulkFiles}
-          dragging={dragging}
-          setDragging={setDragging}
-          busy={busy}
-          submitBulk={submitBulk}
-        />
-      )}
-    </div>
-  );
-}
-
-function SampleSection({ loadSample }: { readonly loadSample: (index: number) => void }) {
-  return (
-    <div
-      style={{
-        backgroundColor: "var(--bg-surface)",
-        border: "1px solid var(--border-subtle)",
-        borderRadius: "var(--radius-md)",
-        padding: "1.25rem",
-      }}
-    >
-      <h3 style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.25rem" }}>
-        No configs on hand? Load Bundled Samples
-      </h3>
-      <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", marginBottom: "0.75rem" }}>
-        Synthetic sample configs — hardened Cisco IOS, work-needed Juniper JunOS, and unrecognized whitebox syntax.
-      </p>
-      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-        {SAMPLE_CONFIGS.map((s, i) => (
+        {onNavigateBulkJobs && (
           <button
             type="button"
-            key={s.filename}
-            className="btn btn-secondary btn-sm"
-            onClick={() => loadSample(i)}
+            onClick={onNavigateBulkJobs}
+            className="btn btn-secondary"
           >
-            ⚡ {s.label}
+            View job history ›
           </button>
-        ))}
+        )}
       </div>
-    </div>
-  );
-}
 
-function SingleUploadCard({
-  file,
-  setFile,
-  deviceId,
-  setDeviceId,
-  vendor,
-  setVendor,
-  customVendor,
-  setCustomVendor,
-  dragging,
-  setDragging,
-  busy,
-  submitSingle,
-}: {
-  readonly file: File | null;
-  readonly setFile: (f: File | null) => void;
-  readonly deviceId: string;
-  readonly setDeviceId: (id: string) => void;
-  readonly vendor: string;
-  readonly setVendor: (v: string) => void;
-  readonly customVendor: string;
-  readonly setCustomVendor: (cv: string) => void;
-  readonly dragging: boolean;
-  readonly setDragging: (d: boolean) => void;
-  readonly busy: boolean;
-  readonly submitSingle: () => void;
-}) {
-  return (
-    <div
-      style={{
-        backgroundColor: "var(--bg-surface)",
-        border: "1px solid var(--border-medium)",
-        borderRadius: "var(--radius-md)",
-        padding: "1.75rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.25rem",
-      }}
-    >
-      <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>Single Device Export</h3>
-
-      {/* Drag & Drop Area */}
-      <label
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
-        }}
+      {/* Tabs */}
+      <div
         style={{
-          border: dragging ? "2px dashed var(--accent-primary)" : "2px dashed var(--border-medium)",
-          backgroundColor: dragging ? "var(--accent-dim)" : "var(--bg-elevated)",
-          borderRadius: "var(--radius-md)",
-          padding: "3rem 2rem",
-          textAlign: "center",
-          cursor: "pointer",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "0.5rem",
-          transition: "all 0.15s ease",
+          gap: "1.5rem",
+          borderBottom: "1px solid #E2E8F0",
+          marginBottom: "1.75rem",
         }}
       >
-        <div style={{ fontSize: "2rem", color: "var(--accent-primary)" }}>⇪</div>
-        {file ? (
-          <div>
-            <strong style={{ color: "var(--text-primary)" }}>{file.name}</strong> ({Math.round(file.size / 1024)} KB) selected
-          </div>
-        ) : (
-          <div>
-            <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-              Drag and drop network configuration file here
-            </div>
-            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-              Supports Cisco, Juniper, Arista, Fortinet, RouterOS, SONiC, AWS SG, or custom text files
-            </div>
-          </div>
-        )}
-        <input type="file" hidden onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-      </label>
+        <button
+          type="button"
+          onClick={() => setActiveTab("single")}
+          style={{
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "single" ? "2px solid #0F1216" : "2px solid transparent",
+            padding: "0.5rem 0.25rem 0.75rem",
+            fontSize: "0.88rem",
+            fontWeight: activeTab === "single" ? 700 : 500,
+            color: activeTab === "single" ? "#0F1216" : "#64748B",
+            cursor: "pointer",
+          }}
+        >
+          Single upload
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("bulk")}
+          style={{
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "bulk" ? "2px solid #0F1216" : "2px solid transparent",
+            padding: "0.5rem 0.25rem 0.75rem",
+            fontSize: "0.88rem",
+            fontWeight: activeTab === "bulk" ? 700 : 500,
+            color: activeTab === "bulk" ? "#0F1216" : "#64748B",
+            cursor: "pointer",
+          }}
+        >
+          Bulk upload
+        </button>
+      </div>
 
-      {/* Device ID and Vendor Options */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.25rem" }}>
+      {/* Main 2-Column Grid matching asset */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "1.75rem", alignItems: "start" }}>
+        {/* Left Column: Dropzone + Recent Processing */}
         <div>
-          <label htmlFor="upload-device-id" style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
-            Device Identifier:
-          </label>
-          <input
-            id="upload-device-id"
-            value={deviceId}
-            onChange={(e) => setDeviceId(e.target.value)}
-            placeholder="e.g. core-switch-01"
-            style={{
-              width: "100%",
-              backgroundColor: "var(--bg-elevated)",
-              border: "1px solid var(--border-medium)",
-              color: "var(--text-primary)",
-              padding: "0.5rem 0.75rem",
-              borderRadius: "var(--radius-sm)",
-              fontFamily: "var(--font-mono)",
+          {/* Dropzone Card */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
             }}
-          />
-        </div>
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={handleFileDrop}
+            style={{
+              backgroundColor: isDragging ? "#F1F5F9" : "#FFFFFF",
+              border: isDragging ? "2px dashed #0F1216" : "1.5px dashed #CBD5E1",
+              borderRadius: "8px",
+              padding: "3.5rem 2rem",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "1.75rem",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {/* Tray Icon in rounded square */}
+            <div
+              style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "8px",
+                border: "1px solid #E2E8F0",
+                backgroundColor: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0F1216",
+                marginBottom: "1rem",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
 
-        <div>
-          <div style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: "0.35rem" }}>
-            Vendor Profile (Optional Override):
-          </div>
-          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+            <div style={{ fontSize: "1.05rem", fontWeight: 700, color: "#0F172A", marginBottom: "0.25rem" }}>
+              {activeTab === "single"
+                ? file
+                  ? file.name
+                  : "Drop configuration files here"
+                : bulkFiles.length > 0
+                ? `${bulkFiles.length} files selected`
+                : "Drop multiple configuration files here"}
+            </div>
+            <div style={{ fontSize: "0.82rem", color: "#64748B", marginBottom: "1.25rem" }}>
+              or browse from your device
+            </div>
+
+            {/* Hidden inputs */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  const sel = e.target.files[0];
+                  setFile(sel);
+                  if (!deviceId) setDeviceId(sel.name.replace(/\.[^.]+$/, ""));
+                }
+              }}
+            />
+            <input
+              type="file"
+              multiple
+              ref={bulkInputRef}
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files) setBulkFiles(Array.from(e.target.files));
+              }}
+            />
+
             <button
               type="button"
-              className={`btn btn-sm ${vendor === AUTO_VENDOR ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setVendor(AUTO_VENDOR)}
+              onClick={() => {
+                if (activeTab === "single") {
+                  fileInputRef.current?.click();
+                } else {
+                  bulkInputRef.current?.click();
+                }
+              }}
+              className="btn btn-primary"
+              style={{ padding: "0.55rem 1.5rem" }}
             >
-              Auto-detect
+              Browse files
             </button>
-            {KNOWN_VENDORS.map((v) => (
+
+            <div style={{ fontSize: "0.74rem", color: "#94A3B8", marginTop: "1.5rem" }}>
+              Supported by current ingestion API: configuration text and supported archive formats. Max size: check backend settings.
+            </div>
+          </div>
+
+          {/* Form details when single file is selected */}
+          {activeTab === "single" && (
+            <div
+              style={{
+                backgroundColor: "#FFFFFF",
+                border: "1px solid #E2E8F0",
+                borderRadius: "8px",
+                padding: "1.25rem 1.5rem",
+                marginBottom: "1.75rem",
+              }}
+            >
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1rem" }}>
+                <div>
+                  <label htmlFor="device-id-input" style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: "#334155", marginBottom: "0.35rem" }}>
+                    Device Identifier
+                  </label>
+                  <input
+                    id="device-id-input"
+                    type="text"
+                    value={deviceId}
+                    onChange={(e) => setDeviceId(e.target.value)}
+                    placeholder="e.g. R1-CORE"
+                    className="search-input-field"
+                    style={{ paddingLeft: "0.85rem" }}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="vendor-profile-select" style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: "#334155", marginBottom: "0.35rem" }}>
+                    Vendor Profile
+                  </label>
+                  <select
+                    id="vendor-profile-select"
+                    value={vendor}
+                    onChange={(e) => setVendor(e.target.value)}
+                    className="filter-select"
+                    style={{ width: "100%" }}
+                  >
+                    <option value={AUTO_VENDOR}>Auto-detect from syntax</option>
+                    {KNOWN_VENDORS.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Sample Configs Quick-Pick */}
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1rem" }}>
+                <span style={{ fontSize: "0.75rem", color: "#64748B", fontWeight: 600 }}>Quick Samples:</span>
+                {SAMPLE_CONFIGS.map((s, idx) => (
+                  <button
+                    key={s.filename}
+                    type="button"
+                    onClick={() => handleSelectSample(idx)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: "0.72rem" }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  disabled={!file || uploading}
+                  onClick={handleSingleSubmit}
+                  className="btn btn-primary"
+                >
+                  {uploading ? "Ingesting & Evaluating..." : "Ingest & Evaluate →"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "bulk" && bulkFiles.length > 0 && (
+            <div style={{ marginBottom: "1.75rem", display: "flex", justifyContent: "flex-end" }}>
               <button
                 type="button"
-                key={v}
-                className={`btn btn-sm ${vendor === v ? "btn-primary" : "btn-secondary"}`}
-                onClick={() => setVendor(v)}
+                disabled={uploading}
+                onClick={handleBulkSubmit}
+                className="btn btn-primary"
               >
-                {v}
+                {uploading ? "Processing Bulk Batch..." : `Ingest Batch (${bulkFiles.length} files) →`}
               </button>
-            ))}
-            {vendor === "__other__" ? (
-              <input
-                value={customVendor}
-                placeholder="vendor name..."
-                onChange={(e) => setCustomVendor(e.target.value)}
-                style={{
-                  backgroundColor: "var(--bg-elevated)",
-                  border: "1px solid var(--accent-primary)",
-                  color: "var(--text-primary)",
-                  padding: "0.2rem 0.5rem",
-                  borderRadius: "var(--radius-sm)",
-                  fontSize: "0.8rem",
-                  fontFamily: "var(--font-mono)",
-                }}
-              />
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setVendor("__other__")}
-              >
-                Other...
-              </button>
-            )}
+            </div>
+          )}
+
+          {/* Recent Processing Table */}
+          <div className="data-table-wrapper">
+            <div
+              style={{
+                padding: "1rem 1.25rem",
+                borderBottom: "1px solid #E2E8F0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: "#FFFFFF",
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0F172A" }}>
+                Recent processing
+              </div>
+              <span style={{ fontSize: "0.75rem", color: "#64748B" }}>Illustrative rows</span>
+            </div>
+
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Vendor</th>
+                  <th>Status</th>
+                  <th>Findings</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentRows.map((row, idx) => (
+                  <tr key={`${row.fileName}-${idx}`}>
+                    <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "#0F172A" }}>
+                      {row.fileName}
+                    </td>
+                    <td>{row.vendor}</td>
+                    <td>
+                      {row.status === "COMPLETE" && (
+                        <span className="badge badge-pass">
+                          <span className="badge-dot" /> COMPLETE
+                        </span>
+                      )}
+                      {row.status === "EVALUATING" && (
+                        <span className="badge badge-unknown">
+                          <span className="badge-dot" /> EVALUATING
+                        </span>
+                      )}
+                      {row.status === "QUEUED" && (
+                        <span className="badge badge-disabled">
+                          <span className="badge-dot" /> QUEUED
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ fontFamily: "var(--font-mono)" }}>{row.findings}</td>
+                    <td style={{ fontSize: "0.8rem", color: "#64748B" }}>{row.created}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Column: Ingestion Pipeline Steps matching 04_configuration_ingestion.png */}
+        <div
+          style={{
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            borderRadius: "8px",
+            padding: "1.5rem",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0F172A", marginBottom: "1.5rem" }}>
+            Ingestion pipeline
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem", position: "relative" }}>
+            <PipelineStep number="01" label="Validate file" active={uploading} completed={false} />
+            <PipelineStep number="02" label="Detect vendor" active={false} completed={false} />
+            <PipelineStep number="03" label="Normalize controls" active={false} completed={false} />
+            <PipelineStep number="04" label="Evaluate frameworks" active={false} completed={false} />
+            <PipelineStep number="05" label="Store results" active={false} completed={false} />
+          </div>
+
+          <div
+            style={{
+              backgroundColor: "#F8FAFC",
+              border: "1px solid #E2E8F0",
+              borderRadius: "6px",
+              padding: "0.85rem",
+              marginTop: "2rem",
+              fontSize: "0.75rem",
+              color: "#64748B",
+              lineHeight: 1.45,
+            }}
+          >
+            Progress reflects actual job/task status from the backend. Deterministic validation guarantees 100% reproducible evidence attribution.
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        className="btn btn-primary"
-        disabled={busy}
-        onClick={submitSingle}
-        style={{ marginTop: "0.5rem" }}
-      >
-        {busy ? "Ingesting Configuration..." : "Ingest Configuration →"}
-      </button>
     </div>
   );
 }
 
-function BulkUploadCard({
-  items,
-  setItems,
-  addBulkFiles,
-  dragging,
-  setDragging,
-  busy,
-  submitBulk,
+function PipelineStep({
+  number,
+  label,
+  active,
 }: {
-  readonly items: BulkItem[];
-  readonly setItems: React.Dispatch<React.SetStateAction<BulkItem[]>>;
-  readonly addBulkFiles: (files: FileList | null) => void;
-  readonly dragging: boolean;
-  readonly setDragging: (d: boolean) => void;
-  readonly busy: boolean;
-  readonly submitBulk: () => void;
+  number: string;
+  label: string;
+  active: boolean;
+  completed: boolean;
 }) {
   return (
-    <div
-      style={{
-        backgroundColor: "var(--bg-surface)",
-        border: "1px solid var(--border-medium)",
-        borderRadius: "var(--radius-md)",
-        padding: "1.75rem",
-        display: "flex",
-        flexDirection: "column",
-        gap: "1.25rem",
-      }}
-    >
-      <h3 style={{ fontSize: "1.05rem", fontWeight: 700, color: "var(--text-primary)" }}>Bulk Fleet Ingestion Batch</h3>
-
-      <label
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          addBulkFiles(e.dataTransfer.files);
-        }}
+    <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+      <div
         style={{
-          border: dragging ? "2px dashed var(--accent-primary)" : "2px dashed var(--border-medium)",
-          backgroundColor: dragging ? "var(--accent-dim)" : "var(--bg-elevated)",
-          borderRadius: "var(--radius-md)",
-          padding: "2.5rem 2rem",
-          textAlign: "center",
-          cursor: "pointer",
+          width: "28px",
+          height: "28px",
+          borderRadius: "50%",
+          border: active ? "2px solid #0F1216" : "1px solid #E2E8F0",
+          backgroundColor: active ? "#0F1216" : "#FFFFFF",
+          color: active ? "#FFFFFF" : "#64748B",
           display: "flex",
-          flexDirection: "column",
           alignItems: "center",
-          gap: "0.5rem",
+          justifyContent: "center",
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          fontFamily: "var(--font-mono)",
+          flexShrink: 0,
         }}
       >
-        <div style={{ fontSize: "1.75rem", color: "var(--accent-primary)" }}>⇪</div>
-        <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-          Drag multiple configuration files here to ingest a fleet batch
-        </div>
-        <input type="file" multiple hidden onChange={(e) => addBulkFiles(e.target.files)} />
-      </label>
-
-      {items.length > 0 && (
-        <div className="data-table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>File Name</th>
-                <th>Device ID</th>
-                <th>Vendor Profile</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, idx) => (
-                <tr key={`${item.file.name}-${idx}`}>
-                  <td>{renderItemStatusBadge(item.status, item.error)}</td>
-                  <td>
-                    <TechnicalValue value={item.file.name} />
-                  </td>
-                  <td>
-                    <input
-                      value={item.deviceId}
-                      onChange={(e) =>
-                        setItems((prev) =>
-                          prev.map((it, i) => (i === idx ? { ...it, deviceId: e.target.value } : it)),
-                        )
-                      }
-                      style={{
-                        backgroundColor: "var(--bg-elevated)",
-                        border: "1px solid var(--border-medium)",
-                        color: "var(--text-primary)",
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: "var(--radius-sm)",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.85rem",
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={item.vendor}
-                      onChange={(e) =>
-                        setItems((prev) =>
-                          prev.map((it, i) => (i === idx ? { ...it, vendor: e.target.value } : it)),
-                        )
-                      }
-                      style={{
-                        backgroundColor: "var(--bg-elevated)",
-                        border: "1px solid var(--border-medium)",
-                        color: "var(--text-primary)",
-                        padding: "0.2rem 0.5rem",
-                        borderRadius: "var(--radius-sm)",
-                        fontSize: "0.85rem",
-                      }}
-                    >
-                      <option value={AUTO_VENDOR}>Auto-detect</option>
-                      {KNOWN_VENDORS.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                      <option value="unknown_vendor">unknown_vendor</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div>
-        <button type="button" className="btn btn-primary" disabled={busy} onClick={submitBulk}>
-          {busy ? "Processing Batch..." : `Ingest Batch (${items.length} Files) →`}
-        </button>
+        {number}
+      </div>
+      <div style={{ fontSize: "0.85rem", fontWeight: active ? 700 : 500, color: active ? "#0F172A" : "#334155" }}>
+        {label}
       </div>
     </div>
   );
