@@ -48,4 +48,6 @@ docs/ComplianceAI_Roadmap_UI_Migration_Phase5.md
 
 
 
-assets/
+# Root design references (large mockups not needed for web deployment)
+/assets/
+!frontend/public/assets/
