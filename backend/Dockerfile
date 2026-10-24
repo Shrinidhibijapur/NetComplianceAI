@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY --chown=appuser:appuser requirements.lock requirements.txt ./
 
-# Locked resolved dependencies installation (satisfies Sonar docker:S8544)
+# Locked resolved dependencies installation
 RUN pip install --require-hashes --no-deps --no-cache-dir --only-binary :all: \
     --index-url https://download.pytorch.org/whl/cpu \
     --extra-index-url https://pypi.org/simple \
